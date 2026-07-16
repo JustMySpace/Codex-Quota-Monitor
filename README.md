@@ -1,131 +1,133 @@
 # Codex Quota Monitor
 
-一个只监控 Codex 的本地 Tauri 桌面浮窗。数据只读取和记录在本机，不上传。
+[简体中文](README.zh-CN.md)
 
-## 功能
+A local Tauri desktop floating monitor for Codex quota and token usage. It only reads and stores data on your machine.
 
-- 读取本机 Codex session 日志中的 `token_count` 事件。
-- 本地按分钟聚合 `input`、`cached input`、`output`、`reasoning output`。
-- 小浮窗常驻桌面：左侧固定显示今日总 token，右侧可切换最近 5 分钟 token 或今日累计曲线。
-- 双击小浮窗打开独立大面板。
-- 大面板支持当天累计曲线和实时曲线切换，并包含 5 分钟分段堆叠图、额度剩余、最近 session。
-- 小浮窗透明度可通过右键菜单或托盘菜单调整；大面板不受透明度影响。
-- 系统托盘常驻；托盘创建失败时，主窗口仍会继续运行。
+## Features
 
-## 界面展示
+- Reads `token_count` events from local Codex session logs.
+- Aggregates `input`, `cached input`, `output`, and `reasoning output` tokens by minute.
+- Desktop floating window: the left side always shows today's total token usage, and the right side can switch between the latest 5-minute usage and today's cumulative curve.
+- Double-click the floating window to open a separate full panel.
+- Full panel supports switching between today's cumulative curve and realtime curve, plus a 5-minute stacked chart, quota remaining, and recent sessions.
+- Floating window opacity can be adjusted from the right-click menu or tray menu. The full panel is not affected by opacity settings.
+- System tray support. If tray creation fails, the monitor window still runs.
 
-小浮窗最近 5 分钟 token：
+## Screenshots
 
-![小浮窗 5 分钟 token](docs/images/float-5min.png)
+Floating window, latest 5-minute token usage:
 
-小浮窗今日累计曲线：
+![Floating window 5-minute token usage](docs/images/float-5min.png)
 
-![小浮窗今日累计曲线](docs/images/float-today-curve.png)
+Floating window, today's cumulative curve:
 
-大面板当天累计曲线：
+![Floating window today's cumulative curve](docs/images/float-today-curve.png)
 
-![大面板当天累计曲线](docs/images/panel-cumulative.png)
+Full panel, today's cumulative curve:
 
-大面板 5 分钟分段堆叠：
+![Full panel today's cumulative curve](docs/images/panel-cumulative.png)
 
-![大面板 5 分钟分段堆叠](docs/images/panel-stacked.png)
+Full panel, 5-minute stacked chart:
 
-## 数据位置
+![Full panel 5-minute stacked chart](docs/images/panel-stacked.png)
 
-监控来源：
+## Data Locations
+
+Monitor source:
 
 - Windows: `%USERPROFILE%\.codex\sessions`
 - macOS/Linux: `$HOME/.codex/sessions`
-- 可通过 `CODEX_HOME` 覆盖 Codex 目录。
+- Override with `CODEX_HOME`.
 
-本地缓存：
+Local cache:
 
 - Windows: `%APPDATA%\CodexQuotaMonitor\usage-cache.json`
 - macOS: `~/Library/Application Support/CodexQuotaMonitor/usage-cache.json`
-- Linux: `$XDG_CONFIG_HOME/CodexQuotaMonitor/usage-cache.json` 或 `~/.config/CodexQuotaMonitor/usage-cache.json`
-- 可通过 `CODEX_QUOTA_MONITOR_HOME` 覆盖缓存目录。
+- Linux: `$XDG_CONFIG_HOME/CodexQuotaMonitor/usage-cache.json` or `~/.config/CodexQuotaMonitor/usage-cache.json`
+- Override with `CODEX_QUOTA_MONITOR_HOME`.
 
-## 开发
+## Development
 
-通用：
+Generic:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Windows 如果当前 shell 没有初始化 MSVC 环境：
+Windows, when the current shell has not initialized the MSVC environment:
 
 ```powershell
 npm install
 npm run dev:win
 ```
 
-macOS：
+macOS:
 
 ```bash
 npm install
 npm run dev:mac
 ```
 
-## Windows 打包
+## Windows Packaging
 
-依赖：
+Requirements:
 
 - Node.js 20+
 - Rust stable
-- Visual Studio Build Tools 2022 或 Visual Studio Community，包含 MSVC C++ 工具链和 Windows SDK
+- Visual Studio Build Tools 2022 or Visual Studio Community with the MSVC C++ toolchain and Windows SDK
 - WebView2 Runtime
 
-打包：
+Build:
 
 ```powershell
 npm install
 npm run build:win
 ```
 
-常见产物：
+Common artifacts:
 
 - `src-tauri/target/release/codex-quota-monitor.exe`
 - `src-tauri/target/release/bundle/msi/Codex Quota Monitor_0.1.0_x64_en-US.msi`
 - `src-tauri/target/release/bundle/nsis/Codex Quota Monitor_0.1.0_x64-setup.exe`
 
-如果已经在 Developer PowerShell 或已初始化 MSVC 的环境中，也可以使用：
+If you are already in Developer PowerShell or an MSVC-initialized shell, you can also use:
 
 ```powershell
 npm run build
 ```
 
-## macOS 打包
+## macOS Packaging
 
-当前代码支持 macOS 源码构建和打包，但 macOS 产物必须在 macOS 机器上生成。
+The code supports macOS source builds and packaging, but macOS artifacts must be produced on a macOS machine.
 
-依赖：
+Requirements:
 
 - Node.js 20+
 - Rust stable
 - Xcode Command Line Tools
 
-准备：
+Prepare:
 
 ```bash
 xcode-select --install
 npm install
 ```
 
-打包：
+Build:
 
 ```bash
 npm run build:mac
 ```
 
-常见产物位置：
+Common artifact locations:
 
 - `src-tauri/target/release/bundle/macos/`
 - `src-tauri/target/release/bundle/dmg/`
 
-未配置 Apple Developer 签名时，生成的 `.app` 或 `.dmg` 可能需要在本机安全设置中手动允许运行。正式分发建议补充 macOS signing/notarization 配置。
+Without Apple Developer signing, generated `.app` or `.dmg` files may need to be manually allowed in local security settings. For public distribution, configure macOS signing and notarization.
 
-## 说明
+## Notes
 
-仓库不提交本机构建产物、`node_modules`、Tauri target 目录或本机专用 Cargo 配置。
+The repository does not commit local build outputs, `node_modules`, Tauri target directories, or machine-specific Cargo configuration.
