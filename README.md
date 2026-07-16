@@ -133,3 +133,7 @@ Without Apple Developer signing, generated `.app` or `.dmg` files may need to be
 ## Notes
 
 The repository does not commit local build outputs, `node_modules`, Tauri target directories, or machine-specific Cargo configuration.
+
+## License
+
+WTFPL. See [LICENSE](LICENSE).

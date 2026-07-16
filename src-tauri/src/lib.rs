@@ -11,7 +11,7 @@ use std::{
 use tauri::{
     Emitter,
     image::Image,
-    menu::MenuBuilder,
+    menu::{MenuBuilder, SubmenuBuilder},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager, WebviewWindow, WindowEvent,
 };
@@ -219,14 +219,17 @@ pub fn run() {
 }
 
 fn setup_tray(app: &mut tauri::App) -> tauri::Result<()> {
+    let opacity_menu = SubmenuBuilder::new(app, "透明度")
+        .text("opacity_40", "40%")
+        .text("opacity_55", "55%")
+        .text("opacity_70", "70%")
+        .text("opacity_82", "82%")
+        .text("opacity_100", "100%")
+        .build()?;
     let menu = MenuBuilder::new(app)
         .text("show", "显示 / 隐藏")
         .separator()
-        .text("opacity_40", "透明度 40%")
-        .text("opacity_55", "透明度 55%")
-        .text("opacity_70", "透明度 70%")
-        .text("opacity_82", "透明度 82%")
-        .text("opacity_100", "透明度 100%")
+        .item(&opacity_menu)
         .separator()
         .text("quit", "退出")
         .build()?;

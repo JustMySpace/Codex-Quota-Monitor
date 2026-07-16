@@ -133,3 +133,7 @@ npm run build:mac
 ## 说明
 
 仓库不提交本机构建产物、`node_modules`、Tauri target 目录或本机专用 Cargo 配置。
+
+## 许可证
+
+WTFPL。详见 [LICENSE](LICENSE)。

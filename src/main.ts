@@ -788,14 +788,13 @@ function renderCompact(dashboard: UsageDashboard | null) {
   const fiveMinuteAverage = Math.round(fiveMinuteTotal / 5);
   const today = sumToday(dashboard);
   const todaySeries = dashboard ? todayCumulativeSeries(dashboard) : [];
-  const switchLabel = state.compactMode === "tokens" ? t("curve") : t("fiveMinShort");
 
   return `
     <section class="shell shell-compact drag-region" aria-label="Codex token monitor" data-open-panel data-drag-window>
-      <header class="compact-header" data-tauri-drag-region>
-        <div class="brand" data-tauri-drag-region>
+      <header class="compact-header">
+        <div class="brand">
           <span class="status-dot ${state.loading ? "is-loading" : ""}"></span>
-          <span data-tauri-drag-region>Codex</span>
+          <span>Codex</span>
         </div>
         <div class="window-actions">
           <button class="icon-button" type="button" data-action="refresh" aria-label="${t("refresh")}">R</button>
@@ -808,7 +807,7 @@ function renderCompact(dashboard: UsageDashboard | null) {
             <div class="compact-value">${formatTokens(today)}</div>
             <div class="metric-sub">${t("remaining")} ${formatPercent(remainingPercent)}</div>
           </div>
-          <div class="side-widget">
+          <div class="side-widget" data-mode-toggle data-no-drag role="button" tabindex="0" aria-label="${t("curve")}">
             ${
               state.compactMode === "tokens"
                 ? `
@@ -827,7 +826,6 @@ function renderCompact(dashboard: UsageDashboard | null) {
         <div class="compact-footline">
           <span>${formatScannedAt(dashboard)}</span>
         </div>
-        <button class="corner-switch" type="button" data-mode-toggle data-no-drag aria-label="${t("curve")}">${switchLabel}</button>
       </main>
       ${renderContextMenu()}
     </section>
@@ -857,10 +855,10 @@ function renderExpanded(dashboard: UsageDashboard | null) {
 
   return `
     <section class="shell shell-expanded" aria-label="Codex quota monitor">
-      <header class="panel-header drag-region" data-tauri-drag-region data-drag-window>
-        <div class="title-block" data-tauri-drag-region>
-          <div class="eyebrow" data-tauri-drag-region>${t("localCodexMonitor")}</div>
-          <h1 data-tauri-drag-region>${t("quotaTitle")}</h1>
+      <header class="panel-header drag-region" data-drag-window>
+        <div class="title-block">
+          <div class="eyebrow">${t("localCodexMonitor")}</div>
+          <h1>${t("quotaTitle")}</h1>
         </div>
         <div class="window-actions">
           ${renderLanguageSelect()}
@@ -1005,9 +1003,30 @@ function bindEvents() {
       if (event.button !== 0 || isInteractiveTarget(event.target)) {
         return;
       }
-      void currentWindow.startDragging().catch(() => {
-        // The data-tauri-drag-region attribute remains as a native fallback.
-      });
+
+      const startX = event.clientX;
+      const startY = event.clientY;
+      let dragging = false;
+
+      const cleanup = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", cleanup);
+        window.removeEventListener("pointercancel", cleanup);
+      };
+
+      const onMove = (moveEvent: PointerEvent) => {
+        if (dragging) return;
+        const distance = Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY);
+        if (distance < 5) return;
+
+        dragging = true;
+        cleanup();
+        void currentWindow.startDragging().catch(() => {});
+      };
+
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", cleanup, { once: true });
+      window.addEventListener("pointercancel", cleanup, { once: true });
     });
   });
 
@@ -1020,10 +1039,18 @@ function bindEvents() {
     });
   });
 
-  app.querySelectorAll<HTMLButtonElement>("[data-mode-toggle]").forEach((button) => {
-    button.addEventListener("click", () => {
+  app.querySelectorAll<HTMLElement>("[data-mode-toggle]").forEach((button) => {
+    const toggleMode = () => {
       state.compactMode = state.compactMode === "tokens" ? "curve" : "tokens";
       render();
+    };
+
+    button.addEventListener("click", toggleMode);
+    button.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        toggleMode();
+      }
     });
   });
 
