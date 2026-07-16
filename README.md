@@ -12,6 +12,24 @@
 - 小浮窗透明度可通过右键菜单或托盘菜单调整；大面板不受透明度影响。
 - 系统托盘常驻；托盘创建失败时，主窗口仍会继续运行。
 
+## 界面展示
+
+小浮窗最近 5 分钟 token：
+
+![小浮窗 5 分钟 token](docs/images/float-5min.png)
+
+小浮窗今日累计曲线：
+
+![小浮窗今日累计曲线](docs/images/float-today-curve.png)
+
+大面板当天累计曲线：
+
+![大面板当天累计曲线](docs/images/panel-cumulative.png)
+
+大面板 5 分钟分段堆叠：
+
+![大面板 5 分钟分段堆叠](docs/images/panel-stacked.png)
+
 ## 数据位置
 
 监控来源：
