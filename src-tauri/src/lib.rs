@@ -69,6 +69,15 @@ struct RateLimitSnapshot {
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
+struct RateLimitPoint {
+    minute: String,
+    used_percent: f64,
+    remaining_percent: f64,
+    window_minutes: Option<u64>,
+    resets_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
 struct LatestUsage {
     timestamp: String,
     minute: String,
@@ -101,6 +110,7 @@ struct UsageDashboard {
     totals: Totals,
     latest: Option<LatestUsage>,
     buckets: Vec<MinuteBucket>,
+    rate_limit_points: Vec<RateLimitPoint>,
     sessions: Vec<SessionSummary>,
     errors: Vec<String>,
 }
@@ -113,6 +123,7 @@ fn scan_codex_usage() -> Result<UsageDashboard, String> {
     let mut errors = Vec::new();
     let mut buckets: BTreeMap<String, MinuteBucket> = BTreeMap::new();
     let mut sessions: BTreeMap<String, SessionSummary> = BTreeMap::new();
+    let mut rate_limit_points = Vec::new();
     let mut totals = Totals::default();
     let mut latest: Option<LatestUsage> = None;
 
@@ -130,7 +141,14 @@ fn scan_codex_usage() -> Result<UsageDashboard, String> {
         files.sort();
 
         for file in files {
-            if let Err(error) = scan_session_file(&file, &mut buckets, &mut sessions, &mut totals, &mut latest) {
+            if let Err(error) = scan_session_file(
+                &file,
+                &mut buckets,
+                &mut sessions,
+                &mut rate_limit_points,
+                &mut totals,
+                &mut latest,
+            ) {
                 errors.push(format!("{}: {}", file.display(), error));
             }
         }
@@ -144,6 +162,7 @@ fn scan_codex_usage() -> Result<UsageDashboard, String> {
         totals,
         latest,
         buckets: buckets.into_values().collect(),
+        rate_limit_points,
         sessions: sessions.into_values().rev().take(20).collect(),
         errors,
     };
@@ -299,6 +318,7 @@ fn scan_session_file(
     path: &Path,
     buckets: &mut BTreeMap<String, MinuteBucket>,
     sessions: &mut BTreeMap<String, SessionSummary>,
+    rate_limit_points: &mut Vec<RateLimitPoint>,
     totals: &mut Totals,
     latest: &mut Option<LatestUsage>,
 ) -> Result<(), String> {
@@ -335,6 +355,19 @@ fn scan_session_file(
         let last = token_counts(info.get("last_token_usage").unwrap_or(&Value::Null));
         let cumulative = token_counts(info.get("total_token_usage").unwrap_or(&Value::Null));
         let rate_limit = rate_limit_snapshot(payload.get("rate_limits").unwrap_or(&Value::Null));
+        if let Some(snapshot) = &rate_limit {
+            if let Some(used_percent) = snapshot.used_percent {
+                if used_percent.is_finite() {
+                    rate_limit_points.push(RateLimitPoint {
+                        minute: minute.clone(),
+                        used_percent,
+                        remaining_percent: (100.0 - used_percent).clamp(0.0, 100.0),
+                        window_minutes: snapshot.window_minutes,
+                        resets_at: snapshot.resets_at,
+                    });
+                }
+            }
+        }
         let model_context_window = info
             .get("model_context_window")
             .and_then(Value::as_u64);
@@ -352,17 +385,29 @@ fn scan_session_file(
         });
         update_session(session, &timestamp, &last, &cumulative);
 
-        *latest = Some(LatestUsage {
+        let latest_usage = LatestUsage {
             timestamp,
             minute,
             last,
             total: cumulative,
             model_context_window,
             rate_limit,
-        });
+        };
+        update_latest(latest, latest_usage);
     }
 
     Ok(())
+}
+
+fn update_latest(latest: &mut Option<LatestUsage>, usage: LatestUsage) {
+    let should_update = latest
+        .as_ref()
+        .map(|current| usage.timestamp.as_str() > current.timestamp.as_str())
+        .unwrap_or(true);
+
+    if should_update {
+        *latest = Some(usage);
+    }
 }
 
 fn collect_jsonl_files(
@@ -636,5 +681,48 @@ mod tests {
             session_id_from_path(&path),
             "019f68a9-adf2-7090-b9de-16acdba46e08"
         );
+    }
+
+    #[test]
+    fn latest_usage_uses_timestamp_order() {
+        let mut latest = Some(test_latest_usage("2026-07-16T07:52:21.000Z", 7.0));
+
+        update_latest(
+            &mut latest,
+            test_latest_usage("2026-07-16T10:04:53.000Z", 11.0),
+        );
+        assert_eq!(
+            latest
+                .as_ref()
+                .and_then(|usage| usage.rate_limit.as_ref())
+                .and_then(|rate_limit| rate_limit.used_percent),
+            Some(11.0)
+        );
+
+        update_latest(
+            &mut latest,
+            test_latest_usage("2026-07-16T09:04:53.000Z", 9.0),
+        );
+        assert_eq!(
+            latest
+                .as_ref()
+                .and_then(|usage| usage.rate_limit.as_ref())
+                .and_then(|rate_limit| rate_limit.used_percent),
+            Some(11.0)
+        );
+    }
+
+    fn test_latest_usage(timestamp: &str, used_percent: f64) -> LatestUsage {
+        LatestUsage {
+            timestamp: timestamp.to_string(),
+            minute: minute_key(timestamp),
+            last: TokenCounts::default(),
+            total: TokenCounts::default(),
+            model_context_window: None,
+            rate_limit: Some(RateLimitSnapshot {
+                used_percent: Some(used_percent),
+                ..RateLimitSnapshot::default()
+            }),
+        }
     }
 }

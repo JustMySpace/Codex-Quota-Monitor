@@ -10,8 +10,10 @@ A local Tauri desktop floating monitor for Codex quota and token usage. It only 
 - Aggregates `input`, `cached input`, `output`, and `reasoning output` tokens by minute.
 - Desktop floating window: the left side always shows today's total token usage, and the right side can switch between the latest 5-minute usage and today's cumulative curve.
 - Double-click the floating window to open a separate full panel.
-- Full panel supports switching between today's cumulative curve and realtime curve, plus a 5-minute stacked chart, quota remaining, and recent sessions.
+- Full panel supports a reset-window quota burn-down chart with configurable use days, switching between today's cumulative curve and realtime curve, plus a 5-minute stacked chart, quota remaining, and recent sessions.
 - Floating window opacity can be adjusted from the right-click menu or tray menu. The full panel is not affected by opacity settings.
+- Dark and light themes can be switched manually.
+- Supports system language detection plus manual switching across 10 common languages.
 - System tray support. If tray creation fails, the monitor window still runs.
 
 ## Screenshots

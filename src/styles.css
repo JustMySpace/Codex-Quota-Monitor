@@ -3,10 +3,17 @@
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  --panel-alpha: 0.82;
+  --panel-alpha: 1;
   --bg: rgba(19, 20, 18, var(--panel-alpha));
   --surface: rgba(33, 34, 31, 0.96);
   --surface-soft: rgba(255, 255, 255, 0.055);
+  --control-bg: rgba(255, 255, 255, 0.055);
+  --control-hover: rgba(255, 255, 255, 0.1);
+  --menu-bg: rgba(24, 25, 23, 0.96);
+  --row-bg: rgba(255, 255, 255, 0.035);
+  --ring-track: rgba(255, 255, 255, 0.12);
+  --grid: rgba(255, 255, 255, 0.12);
+  --shadow: rgba(0, 0, 0, 0.38);
   --line: rgba(255, 255, 255, 0.13);
   --text: #f0f2ed;
   --muted: #a4aa9d;
@@ -15,6 +22,35 @@
   --output: #6fc7ea;
   --reasoning: #ee7aa5;
   --danger: #ff8a7a;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+.theme-light {
+  --bg: rgba(246, 247, 243, var(--panel-alpha));
+  --surface: rgba(255, 255, 255, 0.96);
+  --surface-soft: rgba(25, 30, 24, 0.055);
+  --control-bg: rgba(25, 30, 24, 0.06);
+  --control-hover: rgba(25, 30, 24, 0.11);
+  --menu-bg: rgba(255, 255, 255, 0.97);
+  --row-bg: rgba(25, 30, 24, 0.045);
+  --ring-track: rgba(25, 30, 24, 0.13);
+  --grid: rgba(25, 30, 24, 0.12);
+  --shadow: rgba(24, 27, 22, 0.18);
+  --line: rgba(25, 30, 24, 0.16);
+  --text: #171b15;
+  --muted: #5f6858;
+  --fresh: #208d58;
+  --cached: #b27800;
+  --output: #1978a2;
+  --reasoning: #b53768;
+  --danger: #bd3b2f;
 }
 
 * {
@@ -43,7 +79,11 @@ button {
 .app {
   width: 100%;
   height: 100%;
-  padding: 8px;
+  padding: 0;
+}
+
+.app.compact {
+  padding: 0;
 }
 
 .shell {
@@ -54,7 +94,7 @@ button {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--bg);
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.38);
+  box-shadow: 0 18px 45px var(--shadow);
 }
 
 .shell-compact {
@@ -112,6 +152,32 @@ button {
   flex: 0 0 auto;
 }
 
+.language-control,
+.theme-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.language-select,
+.theme-select {
+  height: 30px;
+  max-width: 132px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--control-bg);
+  font: inherit;
+  outline: none;
+}
+
+.language-select:focus,
+.theme-select:focus {
+  border-color: rgba(97, 211, 148, 0.55);
+}
+
 .icon-button,
 .ghost-button,
 .mode-button,
@@ -119,7 +185,7 @@ button {
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--control-bg);
   cursor: pointer;
 }
 
@@ -142,7 +208,17 @@ button {
 .ghost-button:hover,
 .mode-button:hover,
 .segmented button:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--control-hover);
+}
+
+.close-button {
+  font-size: 17px;
+}
+
+.close-button:hover {
+  border-color: rgba(255, 138, 122, 0.45);
+  color: var(--danger);
+  background: rgba(255, 138, 122, 0.12);
 }
 
 .compact-body {
@@ -544,6 +620,51 @@ button {
   font-size: 12px;
 }
 
+.use-day-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.use-day-control > span {
+  flex: 0 0 auto;
+  text-transform: uppercase;
+}
+
+.weekday-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.weekday-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-width: 34px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--control-bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.weekday-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.weekday-toggle.active {
+  border-color: rgba(97, 211, 148, 0.55);
+  color: var(--text);
+  background: rgba(97, 211, 148, 0.16);
+}
+
 .chart {
   display: block;
   width: 100%;
@@ -552,7 +673,7 @@ button {
 
 .grid line,
 .axis line {
-  stroke: rgba(255, 255, 255, 0.12);
+  stroke: var(--grid);
   stroke-width: 1;
 }
 
@@ -574,6 +695,31 @@ button {
   stroke-width: 2;
 }
 
+.burn-actual {
+  fill: none;
+  stroke: var(--fresh);
+  stroke-width: 2.4;
+}
+
+.burn-ideal {
+  fill: none;
+  stroke: var(--muted);
+  stroke-dasharray: 7 7;
+  stroke-linecap: round;
+  stroke-width: 1.6;
+}
+
+.burn-now-line {
+  stroke: var(--line);
+  stroke-dasharray: 4 5;
+}
+
+.burn-dot {
+  fill: var(--fresh);
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+
 .segment-fresh {
   fill: var(--fresh);
 }
@@ -588,6 +734,22 @@ button {
 
 .segment-reasoning {
   fill: var(--reasoning);
+}
+
+.legend-swatch.segment-fresh {
+  background: var(--fresh);
+}
+
+.legend-swatch.segment-cached {
+  background: var(--cached);
+}
+
+.legend-swatch.segment-output {
+  background: var(--output);
+}
+
+.legend-swatch.segment-reasoning {
+  background: var(--reasoning);
 }
 
 .legend {
@@ -606,9 +768,22 @@ button {
 }
 
 .legend-swatch {
+  display: inline-block;
   width: 10px;
   height: 10px;
   border-radius: 3px;
+}
+
+.legend-line {
+  display: inline-block;
+  width: 20px;
+  height: 0;
+  border-top: 2px solid var(--fresh);
+}
+
+.legend-line-ideal {
+  border-top-color: var(--muted);
+  border-top-style: dashed;
 }
 
 .session-list {
@@ -625,7 +800,7 @@ button {
   padding: 0 10px;
   border: 1px solid transparent;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--row-bg);
   color: var(--muted);
   font-size: 12px;
 }
@@ -655,7 +830,7 @@ button {
 }
 
 .ring-track {
-  stroke: rgba(255, 255, 255, 0.12);
+  stroke: var(--ring-track);
 }
 
 .ring-value {
@@ -672,8 +847,8 @@ button {
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(24, 25, 23, 0.96);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.42);
+  background: var(--menu-bg);
+  box-shadow: 0 12px 32px var(--shadow);
 }
 
 .context-menu-title {
@@ -712,7 +887,8 @@ button {
   }
 
   .chart-toolbar,
-  .section-heading {
+  .section-heading,
+  .use-day-control {
     align-items: flex-start;
     flex-direction: column;
   }
