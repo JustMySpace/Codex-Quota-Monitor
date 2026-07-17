@@ -42,16 +42,19 @@
 
 监控来源：
 
-- Windows: `%USERPROFILE%\.codex\sessions`
-- macOS/Linux: `$HOME/.codex/sessions`
+- Windows: `%USERPROFILE%\.codex\sessions` 和 `%USERPROFILE%\.codex\archived_sessions`
+- macOS/Linux: `$HOME/.codex/sessions` 和 `$HOME/.codex/archived_sessions`
 - 可通过 `CODEX_HOME` 覆盖 Codex 目录。
 
-本地缓存：
+持久化本地账本（只保存 Token 元数据，不保存对话内容）：
 
-- Windows: `%APPDATA%\CodexQuotaMonitor\usage-cache.json`
-- macOS: `~/Library/Application Support/CodexQuotaMonitor/usage-cache.json`
-- Linux: `$XDG_CONFIG_HOME/CodexQuotaMonitor/usage-cache.json` 或 `~/.config/CodexQuotaMonitor/usage-cache.json`
-- 可通过 `CODEX_QUOTA_MONITOR_HOME` 覆盖缓存目录。
+- Windows: `%APPDATA%\CodexQuotaMonitor\usage-ledger.sqlite`
+- macOS: `~/Library/Application Support/CodexQuotaMonitor/usage-ledger.sqlite`
+- Linux: `$XDG_CONFIG_HOME/CodexQuotaMonitor/usage-ledger.sqlite` 或 `~/.config/CodexQuotaMonitor/usage-ledger.sqlite`
+- 可通过 `CODEX_QUOTA_MONITOR_HOME` 覆盖账本所在目录。
+- Token 事件一旦入账，归档或删除源对话都不会使已显示用量回退。
+- 可在完整面板清除本地 Token 历史，并从操作时刻重新计数；额度快照会保留。
+- 监控器首次入账之前就已删除的事件无法重建。
 
 ## 开发
 

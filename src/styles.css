@@ -217,6 +217,30 @@ button {
   background: var(--control-hover);
 }
 
+.icon-button:disabled,
+.ghost-button:disabled,
+.danger-button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.danger-button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 138, 122, 0.35);
+  border-radius: 6px;
+  color: var(--danger);
+  background: rgba(255, 138, 122, 0.06);
+  font: inherit;
+  cursor: pointer;
+}
+
+.danger-button:hover:not(:disabled) {
+  border-color: rgba(255, 138, 122, 0.6);
+  background: rgba(255, 138, 122, 0.12);
+}
+
 .close-button {
   font-size: 17px;
 }
@@ -811,12 +835,21 @@ button {
 }
 
 .data-footer {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
   margin-top: 18px;
   color: var(--muted);
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
   font-size: 11px;
+}
+
+.data-footer-paths {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  overflow-wrap: anywhere;
 }
 
 .quota-ring {

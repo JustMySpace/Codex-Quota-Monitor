@@ -57,7 +57,7 @@ type UsageDashboard = {
   scanned_at_ms: number;
   lookback_days: number;
   codex_sessions_path: string;
-  cache_path: string;
+  storage_path: string;
   totals: TokenCounts & { events: number };
   latest?: LatestUsage | null;
   buckets: MinuteBucket[];
@@ -123,6 +123,9 @@ const en = {
   actualRemaining: "Actual remaining",
   burnDownChart: "Quota burn-down",
   cached: "Cached",
+  clearHistory: "Clear local Token history",
+  clearHistoryConfirm: "Permanently clear locally recorded Token history and start counting from now? Quota snapshots will be kept.",
+  clearingHistory: "Clearing",
   close: "Close",
   collapse: "Collapse",
   context: "Context",
@@ -187,6 +190,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     actualRemaining: "实际剩余",
     burnDownChart: "额度燃尽图",
     cached: "Cached",
+    clearHistory: "清除本地 Token 历史",
+    clearHistoryConfirm: "确定永久清除本地记录的 Token 历史并从现在重新计数吗？额度快照会保留。",
+    clearingHistory: "正在清除",
     close: "关闭",
     collapse: "收起",
     context: "上下文",
@@ -246,6 +252,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     actualRemaining: "實際剩餘",
     burnDownChart: "額度燃盡圖",
     cached: "Cached",
+    clearHistory: "清除本機 Token 歷史",
+    clearHistoryConfirm: "確定永久清除本機記錄的 Token 歷史並從現在重新計數嗎？額度快照會保留。",
+    clearingHistory: "正在清除",
     close: "關閉",
     collapse: "收起",
     context: "上下文",
@@ -305,6 +314,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     actualRemaining: "実際の残量",
     burnDownChart: "クォータ燃焼チャート",
     cached: "Cached",
+    clearHistory: "ローカル Token 履歴を消去",
+    clearHistoryConfirm: "ローカルに記録した Token 履歴を完全に消去し、今から再集計しますか？クォータのスナップショットは保持されます。",
+    clearingHistory: "消去中",
     close: "閉じる",
     collapse: "折りたたむ",
     context: "コンテキスト",
@@ -364,6 +376,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     actualRemaining: "실제 남음",
     burnDownChart: "할당량 번다운",
     cached: "Cached",
+    clearHistory: "로컬 Token 기록 지우기",
+    clearHistoryConfirm: "로컬 Token 기록을 영구 삭제하고 지금부터 다시 계산할까요? 할당량 스냅샷은 유지됩니다.",
+    clearingHistory: "지우는 중",
     close: "닫기",
     collapse: "접기",
     context: "컨텍스트",
@@ -423,6 +438,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     actualRemaining: "Restant réel",
     burnDownChart: "Consommation du quota",
     cached: "Cached",
+    clearHistory: "Effacer l’historique Token local",
+    clearHistoryConfirm: "Effacer définitivement l’historique Token local et recommencer le comptage maintenant ? Les instantanés de quota seront conservés.",
+    clearingHistory: "Effacement",
     close: "Fermer",
     collapse: "Réduire",
     context: "Contexte",
@@ -482,6 +500,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     actualRemaining: "Tatsächlich übrig",
     burnDownChart: "Kontingent-Burndown",
     cached: "Cached",
+    clearHistory: "Lokalen Token-Verlauf löschen",
+    clearHistoryConfirm: "Den lokal gespeicherten Token-Verlauf dauerhaft löschen und ab jetzt neu zählen? Kontingent-Snapshots bleiben erhalten.",
+    clearingHistory: "Wird gelöscht",
     close: "Schließen",
     collapse: "Einklappen",
     context: "Kontext",
@@ -541,6 +562,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     actualRemaining: "Restante real",
     burnDownChart: "Consumo de cuota",
     cached: "Cached",
+    clearHistory: "Borrar historial Token local",
+    clearHistoryConfirm: "¿Borrar permanentemente el historial Token local y volver a contar desde ahora? Se conservarán las instantáneas de cuota.",
+    clearingHistory: "Borrando",
     close: "Cerrar",
     collapse: "Contraer",
     context: "Contexto",
@@ -600,6 +624,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     actualRemaining: "Restante real",
     burnDownChart: "Queima da cota",
     cached: "Cached",
+    clearHistory: "Limpar histórico Token local",
+    clearHistoryConfirm: "Limpar permanentemente o histórico Token local e reiniciar a contagem agora? Os snapshots de cota serão mantidos.",
+    clearingHistory: "Limpando",
     close: "Fechar",
     collapse: "Recolher",
     context: "Contexto",
@@ -659,6 +686,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     actualRemaining: "Фактический остаток",
     burnDownChart: "Сгорание квоты",
     cached: "Cached",
+    clearHistory: "Очистить локальную историю Token",
+    clearHistoryConfirm: "Навсегда очистить локальную историю Token и начать подсчёт заново? Снимки квоты будут сохранены.",
+    clearingHistory: "Очистка",
     close: "Закрыть",
     collapse: "Свернуть",
     context: "Контекст",
@@ -728,6 +758,7 @@ const state: {
   opacity: number;
   contextMenu: { x: number; y: number } | null;
   loading: boolean;
+  resetting: boolean;
   error: string | null;
 } = {
   dashboard: null,
@@ -741,8 +772,11 @@ const state: {
   opacity: readOpacity(),
   contextMenu: null,
   loading: true,
+  resetting: false,
   error: null,
 };
+
+let operationInFlight = false;
 
 const ranges = [
   { label: "1h", minutes: 60 },
@@ -752,6 +786,8 @@ const ranges = [
 ];
 
 async function refreshUsage() {
+  if (operationInFlight) return;
+  operationInFlight = true;
   state.loading = true;
   render();
 
@@ -761,7 +797,29 @@ async function refreshUsage() {
   } catch (error) {
     state.error = String(error);
   } finally {
+    operationInFlight = false;
     state.loading = false;
+    render();
+  }
+}
+
+async function resetTokenHistory() {
+  if (operationInFlight || !window.confirm(t("clearHistoryConfirm"))) return;
+
+  operationInFlight = true;
+  state.loading = true;
+  state.resetting = true;
+  render();
+
+  try {
+    state.dashboard = await invoke<UsageDashboard>("reset_token_history");
+    state.error = null;
+  } catch (error) {
+    state.error = String(error);
+  } finally {
+    operationInFlight = false;
+    state.loading = false;
+    state.resetting = false;
     render();
   }
 }
@@ -821,7 +879,7 @@ function renderCompact(dashboard: UsageDashboard | null) {
           <span>Codex</span>
         </div>
         <div class="window-actions">
-          <button class="icon-button" type="button" data-action="refresh" aria-label="${t("refresh")}">R</button>
+          <button class="icon-button" type="button" data-action="refresh" aria-label="${t("refresh")}" ${state.loading ? "disabled" : ""}>R</button>
         </div>
       </header>
       <main class="compact-body">
@@ -887,7 +945,7 @@ function renderExpanded(dashboard: UsageDashboard | null) {
         <div class="window-actions">
           ${renderLanguageSelect()}
           ${renderThemeSelect()}
-          <button class="ghost-button" type="button" data-action="refresh">${state.loading ? t("scanning") : t("refresh")}</button>
+          <button class="ghost-button" type="button" data-action="refresh" ${state.loading ? "disabled" : ""}>${state.loading ? t("scanning") : t("refresh")}</button>
           <button class="icon-button close-button" type="button" data-action="collapse" aria-label="${t("close")}" title="${t("close")}">×</button>
         </div>
       </header>
@@ -996,8 +1054,13 @@ function renderExpanded(dashboard: UsageDashboard | null) {
         </section>
 
         <footer class="data-footer">
-          <span>${escapeHtml(dashboard?.codex_sessions_path ?? "")}</span>
-          <span>${escapeHtml(dashboard?.cache_path ?? "")}</span>
+          <div class="data-footer-paths">
+            <span>${escapeHtml(dashboard?.codex_sessions_path ?? "")}</span>
+            <span>${escapeHtml(dashboard?.storage_path ?? "")}</span>
+          </div>
+          <button class="danger-button" type="button" data-action="reset-history" ${state.loading ? "disabled" : ""}>
+            ${state.resetting ? t("clearingHistory") : t("clearHistory")}
+          </button>
         </footer>
       </main>
     </section>
@@ -1064,6 +1127,7 @@ function bindEvents() {
       if (action === "expand") void setExpanded(true);
       if (action === "collapse") void setExpanded(false);
       if (action === "refresh") void refreshUsage();
+      if (action === "reset-history") void resetTokenHistory();
     });
   });
 
@@ -2256,4 +2320,4 @@ async function listenForOpacityChanges() {
 
 void listenForOpacityChanges();
 void refreshUsage();
-window.setInterval(() => void refreshUsage(), 30_000);
+window.setInterval(() => void refreshUsage(), 5_000);

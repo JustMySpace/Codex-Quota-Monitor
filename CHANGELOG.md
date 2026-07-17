@@ -11,6 +11,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Persist token metadata in a local SQLite ledger so recorded usage survives source conversation deletion, with incremental deduplication and an explicit history reset action.
+- Keep today's token totals stable when conversations are archived by scanning both active and archived Codex session logs.
 - Select the main weekly quota from the seven-day rate-limit window for normal models, whether it is reported as `primary` or `secondary`.
 - Ignore Spark-only quota snapshots using the session model and context metadata.
 - Preserve the latest valid main weekly quota when the newest session event belongs to Spark.

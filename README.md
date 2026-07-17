@@ -42,16 +42,19 @@ Full panel, 5-minute stacked chart:
 
 Monitor source:
 
-- Windows: `%USERPROFILE%\.codex\sessions`
-- macOS/Linux: `$HOME/.codex/sessions`
+- Windows: `%USERPROFILE%\.codex\sessions` and `%USERPROFILE%\.codex\archived_sessions`
+- macOS/Linux: `$HOME/.codex/sessions` and `$HOME/.codex/archived_sessions`
 - Override with `CODEX_HOME`.
 
-Local cache:
+Persistent local ledger (stores token metadata only, never conversation content):
 
-- Windows: `%APPDATA%\CodexQuotaMonitor\usage-cache.json`
-- macOS: `~/Library/Application Support/CodexQuotaMonitor/usage-cache.json`
-- Linux: `$XDG_CONFIG_HOME/CodexQuotaMonitor/usage-cache.json` or `~/.config/CodexQuotaMonitor/usage-cache.json`
-- Override with `CODEX_QUOTA_MONITOR_HOME`.
+- Windows: `%APPDATA%\CodexQuotaMonitor\usage-ledger.sqlite`
+- macOS: `~/Library/Application Support/CodexQuotaMonitor/usage-ledger.sqlite`
+- Linux: `$XDG_CONFIG_HOME/CodexQuotaMonitor/usage-ledger.sqlite` or `~/.config/CodexQuotaMonitor/usage-ledger.sqlite`
+- Override the containing directory with `CODEX_QUOTA_MONITOR_HOME`.
+- Once an event has been recorded, archiving or deleting its source conversation does not reduce the displayed usage.
+- The expanded panel can clear recorded token history and restart counting from that moment; quota snapshots are retained.
+- Events deleted before the monitor first records them cannot be reconstructed.
 
 ## Development
 
