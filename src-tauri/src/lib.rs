@@ -126,6 +126,7 @@ fn scan_codex_usage() -> Result<UsageDashboard, String> {
     let mut rate_limit_points = Vec::new();
     let mut totals = Totals::default();
     let mut latest: Option<LatestUsage> = None;
+    let mut latest_rate_limit: Option<(String, RateLimitSnapshot)> = None;
 
     if !sessions_dir.exists() {
         errors.push(format!(
@@ -148,10 +149,15 @@ fn scan_codex_usage() -> Result<UsageDashboard, String> {
                 &mut rate_limit_points,
                 &mut totals,
                 &mut latest,
+                &mut latest_rate_limit,
             ) {
                 errors.push(format!("{}: {}", file.display(), error));
             }
         }
+    }
+
+    if let (Some(latest_usage), Some((_, rate_limit))) = (latest.as_mut(), latest_rate_limit) {
+        latest_usage.rate_limit = Some(rate_limit);
     }
 
     let mut dashboard = UsageDashboard {
@@ -324,6 +330,7 @@ fn scan_session_file(
     rate_limit_points: &mut Vec<RateLimitPoint>,
     totals: &mut Totals,
     latest: &mut Option<LatestUsage>,
+    latest_rate_limit: &mut Option<(String, RateLimitSnapshot)>,
 ) -> Result<(), String> {
     let file = File::open(path).map_err(|error| error.to_string())?;
     let reader = BufReader::new(file);
@@ -359,6 +366,7 @@ fn scan_session_file(
         let cumulative = token_counts(info.get("total_token_usage").unwrap_or(&Value::Null));
         let rate_limit = rate_limit_snapshot(payload.get("rate_limits").unwrap_or(&Value::Null));
         if let Some(snapshot) = &rate_limit {
+            update_latest_rate_limit(latest_rate_limit, &timestamp, snapshot.clone());
             if let Some(used_percent) = snapshot.used_percent {
                 if used_percent.is_finite() {
                     rate_limit_points.push(RateLimitPoint {
@@ -410,6 +418,21 @@ fn update_latest(latest: &mut Option<LatestUsage>, usage: LatestUsage) {
 
     if should_update {
         *latest = Some(usage);
+    }
+}
+
+fn update_latest_rate_limit(
+    latest: &mut Option<(String, RateLimitSnapshot)>,
+    timestamp: &str,
+    rate_limit: RateLimitSnapshot,
+) {
+    let should_update = latest
+        .as_ref()
+        .map(|(current_timestamp, _)| timestamp > current_timestamp.as_str())
+        .unwrap_or(true);
+
+    if should_update {
+        *latest = Some((timestamp.to_string(), rate_limit));
     }
 }
 
@@ -477,7 +500,10 @@ fn rate_limit_snapshot(value: &Value) -> Option<RateLimitSnapshot> {
         return None;
     }
 
-    let primary = value.get("primary").unwrap_or(&Value::Null);
+    let secondary = value.get("secondary")?;
+    if !is_weekly_rate_limit(secondary) {
+        return None;
+    }
     let credits_value = value.get("credits").unwrap_or(&Value::Null);
     let credits = if credits_value.is_object() {
         Some(CreditsSnapshot {
@@ -499,18 +525,26 @@ fn rate_limit_snapshot(value: &Value) -> Option<RateLimitSnapshot> {
     };
 
     Some(RateLimitSnapshot {
-        used_percent: primary.get("used_percent").and_then(Value::as_f64),
-        window_minutes: primary.get("window_minutes").and_then(Value::as_u64),
-        resets_at: primary
+        used_percent: secondary.get("used_percent").and_then(Value::as_f64),
+        window_minutes: secondary.get("window_minutes").and_then(Value::as_u64),
+        resets_at: secondary
             .get("resets_at")
             .and_then(Value::as_i64)
-            .or_else(|| primary.get("resets_at").and_then(Value::as_u64).map(|value| value as i64)),
+            .or_else(|| secondary.get("resets_at").and_then(Value::as_u64).map(|value| value as i64)),
         plan_type: value
             .get("plan_type")
             .and_then(Value::as_str)
             .map(ToOwned::to_owned),
         credits,
     })
+}
+
+fn is_weekly_rate_limit(value: &Value) -> bool {
+    value
+        .get("window_minutes")
+        .and_then(Value::as_u64)
+        .map(|minutes| minutes >= 7 * 24 * 60)
+        .unwrap_or(false)
 }
 
 fn add_to_totals(totals: &mut Totals, counts: &TokenCounts) {
@@ -713,6 +747,43 @@ mod tests {
                 .and_then(|rate_limit| rate_limit.used_percent),
             Some(11.0)
         );
+    }
+
+    #[test]
+    fn rate_limit_snapshot_selects_main_weekly_quota() {
+        let value = serde_json::json!({
+            "primary": {
+                "used_percent": 2.0,
+                "window_minutes": 300,
+                "resets_at": 10
+            },
+            "secondary": {
+                "used_percent": 27.0,
+                "window_minutes": 10080,
+                "resets_at": 20
+            },
+            "plan_type": "pro"
+        });
+
+        let snapshot = rate_limit_snapshot(&value).expect("weekly rate limit should be selected");
+        assert_eq!(snapshot.used_percent, Some(27.0));
+        assert_eq!(snapshot.window_minutes, Some(10080));
+        assert_eq!(snapshot.resets_at, Some(20));
+    }
+
+    #[test]
+    fn rate_limit_snapshot_ignores_spark_only_weekly_primary() {
+        let value = serde_json::json!({
+            "primary": {
+                "used_percent": 0.0,
+                "window_minutes": 10080,
+                "resets_at": 20
+            },
+            "secondary": null,
+            "plan_type": "prolite"
+        });
+
+        assert!(rate_limit_snapshot(&value).is_none());
     }
 
     fn test_latest_usage(timestamp: &str, used_percent: f64) -> LatestUsage {

@@ -148,7 +148,7 @@ const en = {
   output: "Output",
   peak5Min: "peak / 5 min",
   plan: "Plan",
-  primaryQuotaRemaining: "Primary quota remaining",
+  primaryQuotaRemaining: "Main weekly quota remaining",
   quotaTitle: "Quota Remaining & Token Usage",
   reasoning: "Reasoning",
   recentSession: "Recent sessions",
@@ -161,6 +161,7 @@ const en = {
   realtimeCurve: "Realtime curve",
   scanning: "Scanning",
   shown: "shown",
+  showHide: "Show / hide",
   stacked5Min: "5-minute stacked",
   systemLanguage: "System",
   today: "Today",
@@ -211,7 +212,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     output: "Output",
     peak5Min: "峰值 / 5 分钟",
     plan: "套餐",
-    primaryQuotaRemaining: "主额度剩余",
+    primaryQuotaRemaining: "主周额度剩余",
     quotaTitle: "额度剩余与 Token 消耗",
     reasoning: "Reasoning",
     recentSession: "最近 Session",
@@ -224,6 +225,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     realtimeCurve: "实时曲线",
     scanning: "扫描中",
     shown: "条",
+    showHide: "显示 / 隐藏",
     stacked5Min: "5 分钟分段堆叠",
     systemLanguage: "跟随系统",
     today: "今天",
@@ -269,7 +271,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     output: "Output",
     peak5Min: "峰值 / 5 分鐘",
     plan: "方案",
-    primaryQuotaRemaining: "主額度剩餘",
+    primaryQuotaRemaining: "主週額度剩餘",
     quotaTitle: "額度剩餘與 Token 消耗",
     reasoning: "Reasoning",
     recentSession: "最近 Session",
@@ -282,6 +284,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     realtimeCurve: "即時曲線",
     scanning: "掃描中",
     shown: "筆",
+    showHide: "顯示 / 隱藏",
     stacked5Min: "5 分鐘分段堆疊",
     systemLanguage: "跟隨系統",
     today: "今天",
@@ -327,7 +330,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     output: "Output",
     peak5Min: "ピーク / 5分",
     plan: "プラン",
-    primaryQuotaRemaining: "主クォータ残量",
+    primaryQuotaRemaining: "メイン週間クォータ残量",
     quotaTitle: "クォータ残量と Token 使用量",
     reasoning: "Reasoning",
     recentSession: "最近の Session",
@@ -340,6 +343,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     realtimeCurve: "リアルタイム曲線",
     scanning: "スキャン中",
     shown: "件",
+    showHide: "表示 / 非表示",
     stacked5Min: "5分スタック",
     systemLanguage: "システム",
     today: "今日",
@@ -385,7 +389,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     output: "Output",
     peak5Min: "피크 / 5분",
     plan: "플랜",
-    primaryQuotaRemaining: "기본 할당량 남음",
+    primaryQuotaRemaining: "주간 기본 할당량 남음",
     quotaTitle: "할당량 잔여와 Token 사용량",
     reasoning: "Reasoning",
     recentSession: "최근 Session",
@@ -398,6 +402,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     realtimeCurve: "실시간 곡선",
     scanning: "스캔 중",
     shown: "개",
+    showHide: "표시 / 숨기기",
     stacked5Min: "5분 스택",
     systemLanguage: "시스템",
     today: "오늘",
@@ -443,7 +448,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     output: "Output",
     peak5Min: "pic / 5 min",
     plan: "Plan",
-    primaryQuotaRemaining: "Quota principal restant",
+    primaryQuotaRemaining: "Quota hebdomadaire principal restant",
     quotaTitle: "Quota restant et usage Token",
     reasoning: "Reasoning",
     recentSession: "Sessions récentes",
@@ -456,6 +461,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     realtimeCurve: "Courbe temps réel",
     scanning: "Analyse",
     shown: "affichées",
+    showHide: "Afficher / masquer",
     stacked5Min: "Empilé 5 minutes",
     systemLanguage: "Système",
     today: "Aujourd'hui",
@@ -501,7 +507,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     output: "Output",
     peak5Min: "Spitze / 5 Min.",
     plan: "Plan",
-    primaryQuotaRemaining: "Primäres Kontingent übrig",
+    primaryQuotaRemaining: "Verbleibendes Haupt-Wochenkontingent",
     quotaTitle: "Kontingent übrig & Token-Verbrauch",
     reasoning: "Reasoning",
     recentSession: "Letzte Sessions",
@@ -514,6 +520,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     realtimeCurve: "Echtzeitkurve",
     scanning: "Scanne",
     shown: "angezeigt",
+    showHide: "Anzeigen / ausblenden",
     stacked5Min: "5-Minuten-Stapel",
     systemLanguage: "System",
     today: "Heute",
@@ -559,7 +566,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     output: "Output",
     peak5Min: "pico / 5 min",
     plan: "Plan",
-    primaryQuotaRemaining: "Cuota principal restante",
+    primaryQuotaRemaining: "Cuota semanal principal restante",
     quotaTitle: "Cuota restante y uso de Token",
     reasoning: "Reasoning",
     recentSession: "Sesiones recientes",
@@ -572,6 +579,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     realtimeCurve: "Curva en tiempo real",
     scanning: "Escaneando",
     shown: "mostradas",
+    showHide: "Mostrar / ocultar",
     stacked5Min: "Apilado de 5 minutos",
     systemLanguage: "Sistema",
     today: "Hoy",
@@ -617,7 +625,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     output: "Output",
     peak5Min: "pico / 5 min",
     plan: "Plano",
-    primaryQuotaRemaining: "Cota principal restante",
+    primaryQuotaRemaining: "Cota semanal principal restante",
     quotaTitle: "Cota restante e uso de Token",
     reasoning: "Reasoning",
     recentSession: "Sessões recentes",
@@ -630,6 +638,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     realtimeCurve: "Curva em tempo real",
     scanning: "Escaneando",
     shown: "exibidas",
+    showHide: "Mostrar / ocultar",
     stacked5Min: "Empilhado de 5 minutos",
     systemLanguage: "Sistema",
     today: "Hoje",
@@ -675,7 +684,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     output: "Output",
     peak5Min: "пик / 5 мин",
     plan: "План",
-    primaryQuotaRemaining: "Основная квота осталась",
+    primaryQuotaRemaining: "Основная недельная квота осталась",
     quotaTitle: "Остаток квоты и расход Token",
     reasoning: "Reasoning",
     recentSession: "Последние Session",
@@ -688,6 +697,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     realtimeCurve: "График реального времени",
     scanning: "Сканирование",
     shown: "показано",
+    showHide: "Показать / скрыть",
     stacked5Min: "Стек за 5 минут",
     systemLanguage: "Система",
     today: "Сегодня",
@@ -805,7 +815,7 @@ function renderCompact(dashboard: UsageDashboard | null) {
           <div class="today-metric">
             <div class="metric-label">${t("todayTotal")}</div>
             <div class="compact-value">${formatTokens(today)}</div>
-            <div class="metric-sub">${t("remaining")} ${formatPercent(remainingPercent)}</div>
+            <div class="metric-sub">${t("remaining")} ${formatQuotaPercent(dashboard, remainingPercent)}</div>
           </div>
           <div class="side-widget" data-mode-toggle data-no-drag role="button" tabindex="0" aria-label="${t("curve")}">
             ${
@@ -874,7 +884,7 @@ function renderExpanded(dashboard: UsageDashboard | null) {
           <div class="quota-visual">
             ${renderQuotaRing(remainingPercent, 112)}
             <div>
-              <div class="quota-value">${formatPercent(remainingPercent)}</div>
+              <div class="quota-value">${formatQuotaPercent(dashboard, remainingPercent)}</div>
               <div class="metric-label">${t("primaryQuotaRemaining")}</div>
             </div>
           </div>
@@ -895,7 +905,11 @@ function renderExpanded(dashboard: UsageDashboard | null) {
         </section>
 
         <section class="stats-grid">
-          ${metricCard(t("remainingQuota"), formatPercent(remainingPercent), `${t("used")} ${formatPercent(usedPercent)}`)}
+          ${metricCard(
+            t("remainingQuota"),
+            formatQuotaPercent(dashboard, remainingPercent),
+            `${t("used")} ${formatQuotaPercent(dashboard, usedPercent)}`,
+          )}
           ${metricCard(t("today"), formatTokens(today), t("localDay"))}
           ${metricCard(t("last1h"), formatTokens(oneHour), `${countEvents(dashboard, 60)} ${t("turns")}`)}
           ${metricCard(t("currentRange"), formatTokens(selectedTotal), rangeLabel())}
@@ -1140,6 +1154,16 @@ function bindEvents() {
       }
     });
   });
+
+  app.querySelectorAll<HTMLButtonElement>("[data-context-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.dataset.contextAction === "hide") {
+        state.contextMenu = null;
+        render();
+        void currentWindow.hide().catch(() => {});
+      }
+    });
+  });
 }
 
 function renderError(dashboard: UsageDashboard | null) {
@@ -1168,16 +1192,24 @@ function renderContextMenu() {
 
   return `
     <div class="context-menu" style="left: ${state.contextMenu.x}px; top: ${state.contextMenu.y}px;" data-no-drag>
-      <div class="context-menu-title">${t("opacity")}</div>
-      ${choices
-        .map(
-          (choice) => `
-            <button class="${Math.abs(state.opacity - choice) < 0.01 ? "active" : ""}" type="button" data-opacity-choice="${choice}">
-              ${formatPercent(choice * 100)}
-            </button>
-          `,
-        )
-        .join("")}
+      <button class="context-menu-action" type="button" data-context-action="hide">${t("showHide")}</button>
+      <div class="context-menu-item">
+        <button class="context-menu-submenu-trigger" type="button" aria-haspopup="menu">
+          <span>${t("opacity")}</span>
+          <span aria-hidden="true">›</span>
+        </button>
+        <div class="context-menu-submenu" role="menu">
+          ${choices
+            .map(
+              (choice) => `
+                <button class="${Math.abs(state.opacity - choice) < 0.01 ? "active" : ""}" type="button" data-opacity-choice="${choice}">
+                  ${formatPercent(choice * 100)}
+                </button>
+              `,
+            )
+            .join("")}
+        </div>
+      </div>
     </div>
   `;
 }
@@ -1909,6 +1941,15 @@ function quotaRemainingPercent(dashboard: UsageDashboard | null) {
   return Math.floor(clamp(100 - quotaUsedPercent(dashboard), 0, 100));
 }
 
+function hasWeeklyQuota(dashboard: UsageDashboard | null) {
+  const usedPercent = dashboard?.latest?.rate_limit?.used_percent;
+  return typeof usedPercent === "number" && Number.isFinite(usedPercent);
+}
+
+function formatQuotaPercent(dashboard: UsageDashboard | null, value: number) {
+  return hasWeeklyQuota(dashboard) ? formatPercent(value) : t("unknown");
+}
+
 function sumToday(dashboard: UsageDashboard | null) {
   if (!dashboard) return 0;
   const now = new Date(dashboard.scanned_at_ms || Date.now());
@@ -2150,7 +2191,7 @@ function weekdayLabel(day: BurnDay) {
 
 function menuPosition(x: number, y: number) {
   return {
-    x: clamp(x, 8, Math.max(8, window.innerWidth - 144)),
+    x: clamp(x, 8, Math.max(8, window.innerWidth - 260)),
     y: clamp(y, 8, Math.max(8, window.innerHeight - 132)),
   };
 }
