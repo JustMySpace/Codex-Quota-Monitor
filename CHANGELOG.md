@@ -11,10 +11,13 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- Select the main weekly quota from the seven-day rate-limit window instead of treating a short-window or Spark-only limit as the primary quota.
-- Ignore Spark-only snapshots that expose a weekly `primary` limit without the normal main-quota `secondary` limit.
+- Select the main weekly quota from the seven-day rate-limit window for normal models, whether it is reported as `primary` or `secondary`.
+- Ignore Spark-only quota snapshots using the session model and context metadata.
 - Preserve the latest valid main weekly quota when the newest session event belongs to Spark.
 - Show an unknown quota state instead of `100%` when no valid main weekly quota is available.
+- Anchor the burn-down chart at `100%` when the first local snapshot is recorded after reset.
+- Recognize seven-day limits in either rate-limit slot for normal models while excluding Spark sessions by model/context metadata.
+- Ignore expired reset snapshots instead of rendering an old quota cycle beyond its seven-day window.
 
 ## [0.1.0] - 2026-07-16
 

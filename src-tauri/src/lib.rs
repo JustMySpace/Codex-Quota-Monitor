@@ -156,8 +156,18 @@ fn scan_codex_usage() -> Result<UsageDashboard, String> {
         }
     }
 
-    if let (Some(latest_usage), Some((_, rate_limit))) = (latest.as_mut(), latest_rate_limit) {
-        latest_usage.rate_limit = Some(rate_limit);
+    let current_rate_limit = latest_rate_limit.filter(|(_, rate_limit)| {
+        rate_limit
+            .resets_at
+            .map(|resets_at| {
+                resets_at > 0
+                    && (resets_at as u128) * 1000 > scanned_at_ms as u128
+            })
+            .unwrap_or(true)
+    });
+
+    if let Some(latest_usage) = latest.as_mut() {
+        latest_usage.rate_limit = current_rate_limit.map(|(_, rate_limit)| rate_limit);
     }
 
     let mut dashboard = UsageDashboard {
@@ -335,10 +345,11 @@ fn scan_session_file(
     let file = File::open(path).map_err(|error| error.to_string())?;
     let reader = BufReader::new(file);
     let session_id = session_id_from_path(path);
+    let mut active_model: Option<String> = None;
 
     for line in reader.lines() {
         let line = line.map_err(|error| error.to_string())?;
-        if !line.contains("\"token_count\"") {
+        if !line.contains("\"token_count\"") && !line.contains("\"turn_context\"") {
             continue;
         }
 
@@ -346,6 +357,15 @@ fn scan_session_file(
             Ok(value) => value,
             Err(_) => continue,
         };
+
+        if value.get("type").and_then(Value::as_str) == Some("turn_context") {
+            active_model = value
+                .get("payload")
+                .and_then(|payload| payload.get("model"))
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned);
+            continue;
+        }
 
         if value.get("type").and_then(Value::as_str) != Some("event_msg") {
             continue;
@@ -364,7 +384,14 @@ fn scan_session_file(
         let info = payload.get("info").unwrap_or(&Value::Null);
         let last = token_counts(info.get("last_token_usage").unwrap_or(&Value::Null));
         let cumulative = token_counts(info.get("total_token_usage").unwrap_or(&Value::Null));
-        let rate_limit = rate_limit_snapshot(payload.get("rate_limits").unwrap_or(&Value::Null));
+        let model_context_window = info
+            .get("model_context_window")
+            .and_then(Value::as_u64);
+        let rate_limit = rate_limit_snapshot(
+            payload.get("rate_limits").unwrap_or(&Value::Null),
+            active_model.as_deref(),
+            model_context_window,
+        );
         if let Some(snapshot) = &rate_limit {
             update_latest_rate_limit(latest_rate_limit, &timestamp, snapshot.clone());
             if let Some(used_percent) = snapshot.used_percent {
@@ -379,10 +406,6 @@ fn scan_session_file(
                 }
             }
         }
-        let model_context_window = info
-            .get("model_context_window")
-            .and_then(Value::as_u64);
-
         add_to_totals(totals, &last);
         let bucket = buckets.entry(minute.clone()).or_insert_with(|| MinuteBucket {
             minute: minute.clone(),
@@ -495,15 +518,23 @@ fn token_counts(value: &Value) -> TokenCounts {
     }
 }
 
-fn rate_limit_snapshot(value: &Value) -> Option<RateLimitSnapshot> {
+fn rate_limit_snapshot(
+    value: &Value,
+    model: Option<&str>,
+    model_context_window: Option<u64>,
+) -> Option<RateLimitSnapshot> {
     if !value.is_object() {
         return None;
     }
 
-    let secondary = value.get("secondary")?;
-    if !is_weekly_rate_limit(secondary) {
+    if is_spark_model(model, model_context_window) {
         return None;
     }
+
+    let weekly = value
+        .get("secondary")
+        .filter(|candidate| is_weekly_rate_limit(candidate))
+        .or_else(|| value.get("primary").filter(|candidate| is_weekly_rate_limit(candidate)))?;
     let credits_value = value.get("credits").unwrap_or(&Value::Null);
     let credits = if credits_value.is_object() {
         Some(CreditsSnapshot {
@@ -525,18 +556,25 @@ fn rate_limit_snapshot(value: &Value) -> Option<RateLimitSnapshot> {
     };
 
     Some(RateLimitSnapshot {
-        used_percent: secondary.get("used_percent").and_then(Value::as_f64),
-        window_minutes: secondary.get("window_minutes").and_then(Value::as_u64),
-        resets_at: secondary
+        used_percent: weekly.get("used_percent").and_then(Value::as_f64),
+        window_minutes: weekly.get("window_minutes").and_then(Value::as_u64),
+        resets_at: weekly
             .get("resets_at")
             .and_then(Value::as_i64)
-            .or_else(|| secondary.get("resets_at").and_then(Value::as_u64).map(|value| value as i64)),
+            .or_else(|| weekly.get("resets_at").and_then(Value::as_u64).map(|value| value as i64)),
         plan_type: value
             .get("plan_type")
             .and_then(Value::as_str)
             .map(ToOwned::to_owned),
         credits,
     })
+}
+
+fn is_spark_model(model: Option<&str>, model_context_window: Option<u64>) -> bool {
+    model
+        .map(|value| value.eq_ignore_ascii_case("gpt-5.3-codex-spark"))
+        .unwrap_or(false)
+        || model_context_window.is_some_and(|window| window <= 128_000)
 }
 
 fn is_weekly_rate_limit(value: &Value) -> bool {
@@ -765,7 +803,8 @@ mod tests {
             "plan_type": "pro"
         });
 
-        let snapshot = rate_limit_snapshot(&value).expect("weekly rate limit should be selected");
+        let snapshot = rate_limit_snapshot(&value, Some("gpt-5.5"), Some(258400))
+            .expect("weekly rate limit should be selected");
         assert_eq!(snapshot.used_percent, Some(27.0));
         assert_eq!(snapshot.window_minutes, Some(10080));
         assert_eq!(snapshot.resets_at, Some(20));
@@ -783,7 +822,25 @@ mod tests {
             "plan_type": "prolite"
         });
 
-        assert!(rate_limit_snapshot(&value).is_none());
+        assert!(rate_limit_snapshot(&value, Some("gpt-5.3-codex-spark"), Some(121600)).is_none());
+    }
+
+    #[test]
+    fn rate_limit_snapshot_accepts_weekly_primary_for_normal_model() {
+        let value = serde_json::json!({
+            "primary": {
+                "used_percent": 14.0,
+                "window_minutes": 10080,
+                "resets_at": 20
+            },
+            "secondary": null,
+            "plan_type": "prolite"
+        });
+
+        let snapshot = rate_limit_snapshot(&value, Some("gpt-5.5"), Some(258400))
+            .expect("normal model weekly primary should be selected");
+        assert_eq!(snapshot.used_percent, Some(14.0));
+        assert_eq!(snapshot.window_minutes, Some(10080));
     }
 
     fn test_latest_usage(timestamp: &str, used_percent: f64) -> LatestUsage {

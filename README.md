@@ -30,6 +30,10 @@ Full panel, today's cumulative curve:
 
 ![Full panel today's cumulative curve](docs/images/panel-cumulative.png)
 
+Full panel, quota burn-down:
+
+![Full panel quota burn-down](docs/images/panel-burn-down.png)
+
 Full panel, 5-minute stacked chart:
 
 ![Full panel 5-minute stacked chart](docs/images/panel-stacked.png)

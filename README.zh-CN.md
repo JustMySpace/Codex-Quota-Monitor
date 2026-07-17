@@ -30,6 +30,10 @@
 
 ![大面板当天累计曲线](docs/images/panel-cumulative.png)
 
+大面板额度燃尽图：
+
+![大面板额度燃尽图](docs/images/panel-burn-down.png)
+
 大面板 5 分钟分段堆叠：
 
 ![大面板 5 分钟分段堆叠](docs/images/panel-stacked.png)

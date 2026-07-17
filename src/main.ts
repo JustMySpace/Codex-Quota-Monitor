@@ -1752,6 +1752,8 @@ function burnDownWindow(dashboard: UsageDashboard | null) {
   if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return null;
 
   const scanMs = dashboard?.scanned_at_ms || Date.now();
+  if (endMs <= scanMs) return null;
+
   return {
     startMs,
     endMs,
@@ -1765,6 +1767,10 @@ function burnDownSeries(
 ): BurnDownPoint[] {
   const points = new Map<number, number>();
   const resetAt = dashboard?.latest?.rate_limit?.resets_at ?? null;
+
+  // A session log may start after the reset. The quota is full at the reset boundary,
+  // so anchor the actual curve there even when no snapshot was recorded at that time.
+  points.set(windowRange.startMs, 100);
 
   for (const point of dashboard?.rate_limit_points ?? []) {
     const ms = parseMinute(point.minute);
