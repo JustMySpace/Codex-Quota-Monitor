@@ -173,6 +173,12 @@ button {
   outline: none;
 }
 
+.language-select option,
+.theme-select option {
+  color: var(--text);
+  background-color: var(--surface);
+}
+
 .language-select:focus,
 .theme-select:focus {
   border-color: rgba(97, 211, 148, 0.55);

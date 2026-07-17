@@ -781,6 +781,12 @@ async function setExpanded(expanded: boolean) {
 
 function render() {
   const dashboard = state.dashboard;
+  const previousPanelContent = state.expanded
+    ? app.querySelector<HTMLElement>(".panel-content")
+    : null;
+  const previousScrollTop = previousPanelContent?.scrollTop ?? 0;
+  const previousScrollLeft = previousPanelContent?.scrollLeft ?? 0;
+
   app.className = `app ${state.expanded ? "expanded" : "compact"} theme-${activeTheme()}`;
   document.documentElement.dataset.theme = activeTheme();
   applyOpacity();
@@ -788,6 +794,14 @@ function render() {
   app.innerHTML = state.expanded
     ? renderExpanded(dashboard)
     : renderCompact(dashboard);
+
+  if (state.expanded) {
+    const nextPanelContent = app.querySelector<HTMLElement>(".panel-content");
+    if (nextPanelContent) {
+      nextPanelContent.scrollTop = previousScrollTop;
+      nextPanelContent.scrollLeft = previousScrollLeft;
+    }
+  }
 
   bindEvents();
 }
@@ -1573,19 +1587,24 @@ function renderStackedChart(series: SeriesBucket[]) {
               ["output", bucket.visible_output_tokens],
               ["reasoning", bucket.reasoning_output_tokens],
             ] as const;
+            const tooltip = [
+              formatShortTime(bucket.ms),
+              `${t("freshInput")}: ${formatTokens(bucket.fresh_input_tokens)}`,
+              `${t("cached")}: ${formatTokens(bucket.cached_input_tokens)}`,
+              `${t("output")}: ${formatTokens(bucket.visible_output_tokens)}`,
+              `${t("reasoning")}: ${formatTokens(bucket.reasoning_output_tokens)}`,
+            ].join(" | ");
 
-            return segments
+            const bars = segments
               .map(([name, value]) => {
                 const segmentHeight = (value / max) * innerHeight;
                 y -= segmentHeight;
                 if (segmentHeight <= 0) return "";
-                return `
-                  <rect class="segment-${name}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barWidth.toFixed(2)}" height="${segmentHeight.toFixed(2)}">
-                    <title>${formatShortTime(bucket.ms)} ${name}: ${formatTokens(value)}</title>
-                  </rect>
-                `;
+                return `<rect class="segment-${name}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barWidth.toFixed(2)}" height="${segmentHeight.toFixed(2)}"></rect>`;
               })
               .join("");
+
+            return `<g class="stacked-bar" aria-label="${escapeHtml(tooltip)}"><title>${escapeHtml(tooltip)}</title>${bars}</g>`;
           })
           .join("")}
       </g>
