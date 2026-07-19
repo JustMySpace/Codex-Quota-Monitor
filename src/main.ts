@@ -162,6 +162,7 @@ const en = {
   remaining: "remaining",
   remainingQuota: "Remaining quota",
   reset: "Reset",
+  start: "Start",
   resetWindow: "Reset window",
   realtime: "Realtime",
   realtimeCurve: "Realtime curve",
@@ -231,6 +232,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     remaining: "剩余",
     remainingQuota: "剩余额度",
     reset: "重置",
+    start: "开始",
     resetWindow: "重置周期",
     realtime: "实时",
     realtimeCurve: "实时曲线",
@@ -295,6 +297,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     remaining: "剩餘",
     remainingQuota: "剩餘額度",
     reset: "重置",
+    start: "開始",
     resetWindow: "重置週期",
     realtime: "即時",
     realtimeCurve: "即時曲線",
@@ -359,6 +362,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     remaining: "残り",
     remainingQuota: "残りクォータ",
     reset: "リセット",
+    start: "開始",
     resetWindow: "リセット期間",
     realtime: "リアルタイム",
     realtimeCurve: "リアルタイム曲線",
@@ -423,6 +427,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     remaining: "남음",
     remainingQuota: "남은 할당량",
     reset: "리셋",
+    start: "시작",
     resetWindow: "리셋 기간",
     realtime: "실시간",
     realtimeCurve: "실시간 곡선",
@@ -487,6 +492,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     remaining: "restant",
     remainingQuota: "Quota restant",
     reset: "Réinitialisation",
+    start: "Début",
     resetWindow: "Fenêtre de réinitialisation",
     realtime: "Temps réel",
     realtimeCurve: "Courbe temps réel",
@@ -551,6 +557,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     remaining: "übrig",
     remainingQuota: "Kontingent übrig",
     reset: "Reset",
+    start: "Start",
     resetWindow: "Reset-Fenster",
     realtime: "Echtzeit",
     realtimeCurve: "Echtzeitkurve",
@@ -615,6 +622,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     remaining: "restante",
     remainingQuota: "Cuota restante",
     reset: "Reinicio",
+    start: "Inicio",
     resetWindow: "Ventana de reinicio",
     realtime: "Tiempo real",
     realtimeCurve: "Curva en tiempo real",
@@ -679,6 +687,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     remaining: "restante",
     remainingQuota: "Cota restante",
     reset: "Redefinir",
+    start: "Início",
     resetWindow: "Janela de redefinição",
     realtime: "Tempo real",
     realtimeCurve: "Curva em tempo real",
@@ -743,6 +752,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     remaining: "осталось",
     remainingQuota: "Остаток квоты",
     reset: "Сброс",
+    start: "Начало",
     resetWindow: "Окно сброса",
     realtime: "Реальное время",
     realtimeCurve: "График реального времени",
@@ -1651,10 +1661,11 @@ function renderBurnDownChart(dashboard: UsageDashboard | null) {
   }
 
   const width = 760;
-  const height = 236;
-  const margin = { top: 16, right: 20, bottom: 34, left: 64 };
+  const height = 264;
+  const margin = { top: 32, right: 20, bottom: 48, left: 64 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
+  const axisY = height - margin.bottom;
   const spanMs = Math.max(1, windowRange.endMs - windowRange.startMs);
   const xFor = (ms: number) => margin.left + clamp((ms - windowRange.startMs) / spanMs, 0, 1) * innerWidth;
   const yFor = (remaining: number) => margin.top + ((100 - clamp(remaining, 0, 100)) / 100) * innerHeight;
@@ -1665,11 +1676,9 @@ function renderBurnDownChart(dashboard: UsageDashboard | null) {
     .map((point, index) => `${index === 0 ? "M" : "L"} ${xFor(point.ms).toFixed(2)} ${yFor(point.remaining_percent).toFixed(2)}`)
     .join(" ");
   const yTicks = [100, 75, 50, 25, 0];
-  const xTicks = [
-    { ms: windowRange.startMs, label: formatDateTimeTick(windowRange.startMs), anchor: "start" },
-    { ms: windowRange.nowMs, label: t("now"), anchor: "middle" },
-    { ms: windowRange.endMs, label: t("reset"), anchor: "end" },
-  ];
+  const dayTicks = burnDownDayTicks(windowRange);
+  const nowX = xFor(windowRange.nowMs);
+  const nowOnLeft = nowX < margin.left + innerWidth / 2;
 
   return `
     <svg class="chart burn-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${t("burnDownChart")}">
@@ -1682,9 +1691,27 @@ function renderBurnDownChart(dashboard: UsageDashboard | null) {
           })
           .join("")}
       </g>
+      <g class="burn-day-grid">
+        ${dayTicks
+          .slice(1, -1)
+          .map((ms) => `<line x1="${xFor(ms).toFixed(2)}" y1="${margin.top}" x2="${xFor(ms).toFixed(2)}" y2="${axisY}"></line>`)
+          .join("")}
+      </g>
+      <g class="burn-boundaries">
+        <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${axisY}"></line>
+        <text x="${margin.left + 4}" y="12" text-anchor="start">${t("start")}</text>
+        <line x1="${width - margin.right}" y1="${margin.top}" x2="${width - margin.right}" y2="${axisY}"></line>
+        <text x="${width - margin.right - 4}" y="12" text-anchor="end">${t("reset")}</text>
+      </g>
       <path class="burn-ideal" d="${idealPath}"></path>
       <path class="burn-actual" d="${actualPath}"></path>
-      <line class="burn-now-line" x1="${xFor(windowRange.nowMs).toFixed(2)}" y1="${margin.top}" x2="${xFor(windowRange.nowMs).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}"></line>
+      <line class="burn-now-line" x1="${nowX.toFixed(2)}" y1="${margin.top}" x2="${nowX.toFixed(2)}" y2="${axisY}"></line>
+      <text
+        class="burn-now-label"
+        x="${(nowX + (nowOnLeft ? 5 : -5)).toFixed(2)}"
+        y="${margin.top - 6}"
+        text-anchor="${nowOnLeft ? "start" : "end"}"
+      >${t("now")}</text>
       ${data
         .filter((_, index) => index === data.length - 1 || data.length < 40)
         .map(
@@ -1696,17 +1723,44 @@ function renderBurnDownChart(dashboard: UsageDashboard | null) {
         )
         .join("")}
       <g class="axis">
-        <line x1="${margin.left}" y1="${height - margin.bottom}" x2="${width - margin.right}" y2="${height - margin.bottom}"></line>
-        ${xTicks
-          .map(
-            ({ ms, label, anchor }) => `
-              <text x="${xFor(ms).toFixed(2)}" y="${height - 12}" text-anchor="${anchor}">${escapeHtml(label)}</text>
-            `,
-          )
+        <line x1="${margin.left}" y1="${axisY}" x2="${width - margin.right}" y2="${axisY}"></line>
+        ${dayTicks
+          .map((ms, index) => {
+            const x = xFor(ms).toFixed(2);
+            const label = formatBurnDayTick(ms);
+            const anchor = index === 0 ? "start" : index === dayTicks.length - 1 ? "end" : "middle";
+            return `
+              <line class="burn-day-tick" x1="${x}" y1="${axisY}" x2="${x}" y2="${axisY + 5}"></line>
+              <text class="burn-day-label" x="${x}" y="${axisY + 16}" text-anchor="${anchor}">
+                <tspan x="${x}">${escapeHtml(label.date)}</tspan>
+                <tspan x="${x}" dy="11">${escapeHtml(label.time)}</tspan>
+              </text>
+            `;
+          })
           .join("")}
       </g>
     </svg>
   `;
+}
+
+function burnDownDayTicks(windowRange: { startMs: number; endMs: number }) {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const ticks: number[] = [];
+
+  for (let ms = windowRange.startMs; ms < windowRange.endMs; ms += dayMs) {
+    ticks.push(ms);
+  }
+  ticks.push(windowRange.endMs);
+
+  return ticks;
+}
+
+function formatBurnDayTick(ms: number) {
+  const date = new Date(ms);
+  return {
+    date: `${date.getMonth() + 1}/${date.getDate()}`,
+    time: date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+  };
 }
 
 function renderStackedChart(series: SeriesBucket[]) {

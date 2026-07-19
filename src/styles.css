@@ -770,6 +770,39 @@ button {
   stroke-dasharray: 4 5;
 }
 
+.burn-day-grid line {
+  stroke: var(--grid);
+  stroke-dasharray: 2 5;
+  opacity: 0.55;
+}
+
+.burn-boundaries line {
+  stroke: var(--muted);
+  stroke-width: 1.2;
+}
+
+.burn-boundaries text {
+  fill: var(--text);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.burn-now-label {
+  fill: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.axis .burn-day-tick {
+  stroke: var(--muted);
+}
+
+.axis .burn-day-label {
+  font-size: 9.5px;
+}
+
 .burn-dot {
   fill: var(--fresh);
   stroke: var(--bg);
