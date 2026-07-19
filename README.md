@@ -14,6 +14,7 @@ A local Tauri desktop floating monitor for Codex quota and token usage. It only 
 - Floating window opacity can be adjusted from the right-click menu or tray menu. The full panel is not affected by opacity settings.
 - Dark and light themes can be switched manually.
 - Supports system language detection plus manual switching across 10 common languages.
+- Optional launch-at-login setting for Windows, macOS, and Linux, synchronized with the system login item state.
 - System tray support. If tray creation fails, the monitor window still runs.
 
 ## Screenshots

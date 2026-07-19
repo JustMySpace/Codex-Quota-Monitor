@@ -9,6 +9,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Add an optional launch-at-login checkbox backed by the system autostart mechanism on Windows, macOS, and Linux.
+
 ### Fixed
 
 - Persist token metadata in a local SQLite ledger so recorded usage survives source conversation deletion, with incremental deduplication and an explicit history reset action.

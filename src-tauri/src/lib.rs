@@ -55,6 +55,12 @@ pub fn run() {
             hide_panel
         ])
         .setup(|app| {
+            #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+            app.handle().plugin(tauri_plugin_autostart::init(
+                tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+                None,
+            ))?;
+
             configure_main_window(app);
             if let Err(error) = setup_tray(app) {
                 eprintln!("failed to create tray icon: {error}");

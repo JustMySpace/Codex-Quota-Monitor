@@ -565,6 +565,44 @@ button {
   background: var(--surface-soft);
 }
 
+.autostart-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+}
+
+.autostart-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.autostart-copy strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.autostart-copy span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.autostart-checkbox {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: var(--fresh);
+  cursor: pointer;
+}
+
+.autostart-checkbox:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
 .opacity-control {
   display: grid;
   grid-template-columns: auto minmax(160px, 1fr) 48px;

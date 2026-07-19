@@ -3,5 +3,11 @@
   "identifier": "default",
   "description": "Default capability for the monitor window",
   "windows": ["float", "panel"],
-  "permissions": ["core:default", "core:window:allow-start-dragging"]
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
+  ]
 }

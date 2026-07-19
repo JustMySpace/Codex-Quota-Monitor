@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import "./styles.css";
 
 type TokenCounts = {
@@ -126,6 +127,8 @@ const en = {
   clearHistory: "Clear local Token history",
   clearHistoryConfirm: "Permanently clear locally recorded Token history and start counting from now? Quota snapshots will be kept.",
   clearingHistory: "Clearing",
+  launchAtLogin: "Launch at login",
+  launchAtLoginDescription: "Automatically start Codex Quota Monitor when you sign in.",
   close: "Close",
   collapse: "Collapse",
   context: "Context",
@@ -193,6 +196,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     clearHistory: "清除本地 Token 历史",
     clearHistoryConfirm: "确定永久清除本地记录的 Token 历史并从现在重新计数吗？额度快照会保留。",
     clearingHistory: "正在清除",
+    launchAtLogin: "登录时自动启动",
+    launchAtLoginDescription: "登录系统后自动启动 Codex Quota Monitor。",
     close: "关闭",
     collapse: "收起",
     context: "上下文",
@@ -255,6 +260,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     clearHistory: "清除本機 Token 歷史",
     clearHistoryConfirm: "確定永久清除本機記錄的 Token 歷史並從現在重新計數嗎？額度快照會保留。",
     clearingHistory: "正在清除",
+    launchAtLogin: "登入時自動啟動",
+    launchAtLoginDescription: "登入系統後自動啟動 Codex Quota Monitor。",
     close: "關閉",
     collapse: "收起",
     context: "上下文",
@@ -317,6 +324,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     clearHistory: "ローカル Token 履歴を消去",
     clearHistoryConfirm: "ローカルに記録した Token 履歴を完全に消去し、今から再集計しますか？クォータのスナップショットは保持されます。",
     clearingHistory: "消去中",
+    launchAtLogin: "ログイン時に自動起動",
+    launchAtLoginDescription: "ログイン後に Codex Quota Monitor を自動的に起動します。",
     close: "閉じる",
     collapse: "折りたたむ",
     context: "コンテキスト",
@@ -379,6 +388,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     clearHistory: "로컬 Token 기록 지우기",
     clearHistoryConfirm: "로컬 Token 기록을 영구 삭제하고 지금부터 다시 계산할까요? 할당량 스냅샷은 유지됩니다.",
     clearingHistory: "지우는 중",
+    launchAtLogin: "로그인 시 자동 시작",
+    launchAtLoginDescription: "로그인하면 Codex Quota Monitor를 자동으로 시작합니다.",
     close: "닫기",
     collapse: "접기",
     context: "컨텍스트",
@@ -441,6 +452,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     clearHistory: "Effacer l’historique Token local",
     clearHistoryConfirm: "Effacer définitivement l’historique Token local et recommencer le comptage maintenant ? Les instantanés de quota seront conservés.",
     clearingHistory: "Effacement",
+    launchAtLogin: "Lancer à l’ouverture de session",
+    launchAtLoginDescription: "Démarre automatiquement Codex Quota Monitor à la connexion.",
     close: "Fermer",
     collapse: "Réduire",
     context: "Contexte",
@@ -503,6 +516,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     clearHistory: "Lokalen Token-Verlauf löschen",
     clearHistoryConfirm: "Den lokal gespeicherten Token-Verlauf dauerhaft löschen und ab jetzt neu zählen? Kontingent-Snapshots bleiben erhalten.",
     clearingHistory: "Wird gelöscht",
+    launchAtLogin: "Beim Anmelden starten",
+    launchAtLoginDescription: "Startet Codex Quota Monitor nach der Anmeldung automatisch.",
     close: "Schließen",
     collapse: "Einklappen",
     context: "Kontext",
@@ -565,6 +580,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     clearHistory: "Borrar historial Token local",
     clearHistoryConfirm: "¿Borrar permanentemente el historial Token local y volver a contar desde ahora? Se conservarán las instantáneas de cuota.",
     clearingHistory: "Borrando",
+    launchAtLogin: "Iniciar al acceder",
+    launchAtLoginDescription: "Inicia Codex Quota Monitor automáticamente al acceder al sistema.",
     close: "Cerrar",
     collapse: "Contraer",
     context: "Contexto",
@@ -627,6 +644,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     clearHistory: "Limpar histórico Token local",
     clearHistoryConfirm: "Limpar permanentemente o histórico Token local e reiniciar a contagem agora? Os snapshots de cota serão mantidos.",
     clearingHistory: "Limpando",
+    launchAtLogin: "Iniciar ao entrar",
+    launchAtLoginDescription: "Inicia o Codex Quota Monitor automaticamente ao entrar no sistema.",
     close: "Fechar",
     collapse: "Recolher",
     context: "Contexto",
@@ -689,6 +708,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     clearHistory: "Очистить локальную историю Token",
     clearHistoryConfirm: "Навсегда очистить локальную историю Token и начать подсчёт заново? Снимки квоты будут сохранены.",
     clearingHistory: "Очистка",
+    launchAtLogin: "Запускать при входе",
+    launchAtLoginDescription: "Автоматически запускает Codex Quota Monitor после входа в систему.",
     close: "Закрыть",
     collapse: "Свернуть",
     context: "Контекст",
@@ -759,6 +780,9 @@ const state: {
   contextMenu: { x: number; y: number } | null;
   loading: boolean;
   resetting: boolean;
+  autostartEnabled: boolean;
+  autostartLoading: boolean;
+  autostartError: string | null;
   error: string | null;
 } = {
   dashboard: null,
@@ -773,6 +797,9 @@ const state: {
   contextMenu: null,
   loading: true,
   resetting: false,
+  autostartEnabled: false,
+  autostartLoading: true,
+  autostartError: null,
   error: null,
 };
 
@@ -820,6 +847,48 @@ async function resetTokenHistory() {
     operationInFlight = false;
     state.loading = false;
     state.resetting = false;
+    render();
+  }
+}
+
+async function syncAutostartState() {
+  state.autostartLoading = true;
+  render();
+
+  try {
+    state.autostartEnabled = await isEnabled();
+    state.autostartError = null;
+  } catch (error) {
+    state.autostartError = String(error);
+  } finally {
+    state.autostartLoading = false;
+    render();
+  }
+}
+
+async function setAutostartEnabled(enabled: boolean) {
+  if (state.autostartLoading) return;
+
+  state.autostartLoading = true;
+  state.autostartError = null;
+  render();
+
+  try {
+    if (enabled) {
+      await enable();
+    } else {
+      await disable();
+    }
+    state.autostartEnabled = await isEnabled();
+  } catch (error) {
+    state.autostartError = String(error);
+    try {
+      state.autostartEnabled = await isEnabled();
+    } catch {
+      // Keep the last known system state when it cannot be queried.
+    }
+  } finally {
+    state.autostartLoading = false;
     render();
   }
 }
@@ -985,6 +1054,23 @@ function renderExpanded(dashboard: UsageDashboard | null) {
           ${metricCard(t("today"), formatTokens(today), t("localDay"))}
           ${metricCard(t("last1h"), formatTokens(oneHour), `${countEvents(dashboard, 60)} ${t("turns")}`)}
           ${metricCard(t("currentRange"), formatTokens(selectedTotal), rangeLabel())}
+        </section>
+
+        <section class="settings-strip">
+          <label class="autostart-control" data-no-drag>
+            <span class="autostart-copy">
+              <strong>${t("launchAtLogin")}</strong>
+              <span>${t("launchAtLoginDescription")}</span>
+            </span>
+            <input
+              class="autostart-checkbox"
+              type="checkbox"
+              data-autostart
+              aria-label="${t("launchAtLogin")}"
+              ${state.autostartEnabled ? "checked" : ""}
+              ${state.autostartLoading ? "disabled" : ""}
+            >
+          </label>
         </section>
 
         <section class="chart-section burn-section">
@@ -1178,6 +1264,12 @@ function bindEvents() {
     });
   });
 
+  app.querySelectorAll<HTMLInputElement>("[data-autostart]").forEach((input) => {
+    input.addEventListener("change", () => {
+      void setAutostartEnabled(input.checked);
+    });
+  });
+
   app.querySelectorAll<HTMLInputElement>("[data-burn-day]").forEach((input) => {
     input.addEventListener("change", () => {
       const day = Number(input.dataset.burnDay);
@@ -1247,6 +1339,7 @@ function bindEvents() {
 function renderError(dashboard: UsageDashboard | null) {
   const messages = [
     state.error,
+    state.autostartError,
     ...(dashboard?.errors ?? []),
   ].filter(Boolean);
 
@@ -2319,5 +2412,6 @@ async function listenForOpacityChanges() {
 }
 
 void listenForOpacityChanges();
+void syncAutostartState();
 void refreshUsage();
 window.setInterval(() => void refreshUsage(), 5_000);
