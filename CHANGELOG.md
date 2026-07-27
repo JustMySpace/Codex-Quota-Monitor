@@ -13,6 +13,7 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 - Add an optional launch-at-login checkbox backed by the system autostart mechanism on Windows, macOS, and Linux.
 - Read the current main quota from the experimental local Codex app-server every 15 seconds, with session-log snapshots as a fallback.
+- Remember the floating widget position, add an explicit pin control for the main panel, and support opening the panel from the tray menu or a tray-icon double-click.
 
 ### Fixed
 

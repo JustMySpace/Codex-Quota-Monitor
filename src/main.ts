@@ -98,6 +98,7 @@ const opacityStorageKey = "codex-quota-monitor.opacity";
 const languageStorageKey = "codex-quota-monitor.language";
 const themeStorageKey = "codex-quota-monitor.theme";
 const burnDaysStorageKey = "codex-quota-monitor.burn-days";
+const panelPinnedStorageKey = "codex-quota-monitor.panel-pinned";
 
 const locales = [
   { code: "en", label: "English" },
@@ -184,6 +185,7 @@ const en = {
   lightTheme: "Light",
   useDay: "USE DAY",
   used: "used",
+  pin: "Pin",
 } as const;
 
 type TranslationKey = keyof typeof en;
@@ -254,6 +256,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     lightTheme: "亮色",
     useDay: "USE DAY",
     used: "已用",
+    pin: "置顶",
   },
   "zh-TW": {
     actualRemaining: "實際剩餘",
@@ -319,6 +322,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     lightTheme: "亮色",
     useDay: "USE DAY",
     used: "已用",
+    pin: "置頂",
   },
   ja: {
     actualRemaining: "実際の残量",
@@ -384,6 +388,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     lightTheme: "ライト",
     useDay: "USE DAY",
     used: "使用済み",
+    pin: "ピン留め",
   },
   ko: {
     actualRemaining: "실제 남음",
@@ -449,6 +454,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     lightTheme: "라이트",
     useDay: "USE DAY",
     used: "사용됨",
+    pin: "고정",
   },
   fr: {
     actualRemaining: "Restant réel",
@@ -514,6 +520,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     lightTheme: "Clair",
     useDay: "USE DAY",
     used: "utilisé",
+    pin: "Épingler",
   },
   de: {
     actualRemaining: "Tatsächlich übrig",
@@ -579,6 +586,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     lightTheme: "Hell",
     useDay: "USE DAY",
     used: "genutzt",
+    pin: "Anheften",
   },
   es: {
     actualRemaining: "Restante real",
@@ -644,6 +652,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     lightTheme: "Claro",
     useDay: "USE DAY",
     used: "usado",
+    pin: "Fijar",
   },
   "pt-BR": {
     actualRemaining: "Restante real",
@@ -709,6 +718,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     lightTheme: "Claro",
     useDay: "USE DAY",
     used: "usado",
+    pin: "Fixar",
   },
   ru: {
     actualRemaining: "Фактический остаток",
@@ -774,6 +784,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     lightTheme: "Светлая",
     useDay: "USE DAY",
     used: "использовано",
+    pin: "Закрепить",
   },
 };
 
@@ -786,6 +797,7 @@ const state: {
   theme: ThemeChoice;
   burnDays: BurnDay[];
   rangeMinutes: number;
+  panelPinned: boolean;
   opacity: number;
   contextMenu: { x: number; y: number } | null;
   loading: boolean;
@@ -803,6 +815,7 @@ const state: {
   theme: readTheme(),
   burnDays: readBurnDays(),
   rangeMinutes: 360,
+  panelPinned: readPanelPinned(),
   opacity: readOpacity(),
   contextMenu: null,
   loading: true,
@@ -1022,6 +1035,16 @@ function renderExpanded(dashboard: UsageDashboard | null) {
           <h1>${t("quotaTitle")}</h1>
         </div>
         <div class="window-actions">
+          <button
+            class="icon-button pin-button"
+            type="button"
+            data-action="toggle-pin"
+            aria-label="${t("pin")}"
+            title="${t("pin")}"
+            aria-pressed="${state.panelPinned ? "true" : "false"}"
+          >
+            ${renderPinIcon()}
+          </button>
           ${renderLanguageSelect()}
           ${renderThemeSelect()}
           <button class="ghost-button" type="button" data-action="refresh" ${state.loading ? "disabled" : ""}>${state.loading ? t("scanning") : t("refresh")}</button>
@@ -1223,6 +1246,7 @@ function bindEvents() {
       if (action === "expand") void setExpanded(true);
       if (action === "collapse") void setExpanded(false);
       if (action === "refresh") void refreshUsage();
+      if (action === "toggle-pin") void setPanelPinned(!state.panelPinned);
       if (action === "reset-history") void resetTokenHistory();
     });
   });
@@ -1473,6 +1497,17 @@ function renderQuotaRing(percent: number, size = 76) {
       <circle class="ring-value" cx="${center}" cy="${center}" r="${radius}" fill="none" stroke-width="${stroke}"
         stroke-dasharray="${dash.toFixed(2)} ${(circumference - dash).toFixed(2)}" stroke-linecap="round"
         transform="rotate(-90 ${center} ${center})"></circle>
+    </svg>
+  `;
+}
+
+function renderPinIcon() {
+  return `
+    <svg class="pin-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M14.2 3.8 20.2 9.8" />
+      <path d="M8.4 13.6 4 18" />
+      <path d="m13 5-6.2 6.2 6 6L19 11" />
+      <path d="m11.1 15.5 2.7 4.7" />
     </svg>
   `;
 }
@@ -2402,6 +2437,25 @@ function isThemeChoice(value: unknown): value is ThemeChoice {
   return value === "system" || value === "dark" || value === "light";
 }
 
+function readPanelPinned() {
+  return localStorage.getItem(panelPinnedStorageKey) === "true";
+}
+
+async function setPanelPinned(pinned: boolean) {
+  state.panelPinned = pinned;
+  localStorage.setItem(panelPinnedStorageKey, String(state.panelPinned));
+
+  if (isPanelWindow) {
+    try {
+      await invoke("set_panel_pinned", { pinned: state.panelPinned });
+    } catch {
+      // Best-effort update. Some platforms may not support immediate always-on-top changes.
+    }
+  }
+
+  render();
+}
+
 function readBurnDays(): BurnDay[] {
   const raw = localStorage.getItem(burnDaysStorageKey);
   if (!raw) return [...allBurnDays];
@@ -2455,6 +2509,16 @@ function applyOpacity() {
   document.documentElement.style.setProperty("--panel-alpha", "1.00");
 }
 
+async function applyPanelPinnedState() {
+  if (!isPanelWindow) return;
+
+  try {
+    await invoke("set_panel_pinned", { pinned: state.panelPinned });
+  } catch {
+    // Best-effort update. Some platforms may not support always-on-top changes.
+  }
+}
+
 async function listenForOpacityChanges() {
   await listen<number>("opacity-change", (event) => {
     const value = Number(event.payload);
@@ -2466,6 +2530,7 @@ async function listenForOpacityChanges() {
 }
 
 void listenForOpacityChanges();
+void applyPanelPinnedState();
 void syncAutostartState();
 void refreshUsage();
 window.setInterval(() => void refreshUsage(), 5_000);

@@ -205,6 +205,22 @@ button {
   line-height: 1;
 }
 
+.pin-button[aria-pressed="true"] {
+  border-color: rgba(97, 211, 148, 0.55);
+  color: var(--fresh);
+  background: rgba(97, 211, 148, 0.16);
+}
+
+.pin-icon {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
 .ghost-button {
   height: 30px;
   padding: 0 12px;
