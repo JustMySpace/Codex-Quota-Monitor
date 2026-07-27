@@ -2,11 +2,12 @@
 
 [简体中文](README.zh-CN.md)
 
-A local Tauri desktop floating monitor for Codex quota and token usage. It only reads and stores data on your machine.
+A local Tauri desktop floating monitor for Codex quota and token usage. Token metadata stays on your machine. For current quota status, the monitor asks the local experimental Codex app-server, which may contact OpenAI using your existing Codex sign-in; conversation content is never read or sent by the monitor.
 
 ## Features
 
 - Reads `token_count` events from local Codex session logs.
+- Reads the current main quota from the experimental local Codex app-server every 15 seconds, with session-log quota snapshots as a fallback.
 - Aggregates `input`, `cached input`, `output`, and `reasoning output` tokens by minute.
 - Desktop floating window: the left side always shows today's total token usage, and the right side can switch between the latest 5-minute usage and today's cumulative curve.
 - Double-click the floating window to open a separate full panel.
@@ -43,6 +44,7 @@ Full panel, 5-minute stacked chart:
 
 Monitor source:
 
+- The `codex` CLI must be available on `PATH` for live quota lookup. The app-server protocol is experimental and may change between Codex releases.
 - Windows: `%USERPROFILE%\.codex\sessions` and `%USERPROFILE%\.codex\archived_sessions`
 - macOS/Linux: `$HOME/.codex/sessions` and `$HOME/.codex/archived_sessions`
 - Override with `CODEX_HOME`.

@@ -2,11 +2,12 @@
 
 [English](README.md)
 
-一个只监控 Codex 的本地 Tauri 桌面浮窗。数据只读取和记录在本机，不上传。
+一个只监控 Codex 的本地 Tauri 桌面浮窗。Token 元数据只记录在本机。当前额度通过本机实验性 Codex app-server 查询；app-server 可能使用现有 Codex 登录状态访问 OpenAI，但监控器不会读取或发送对话内容。
 
 ## 功能
 
 - 读取本机 Codex session 日志中的 `token_count` 事件。
+- 每 15 秒通过本机实验性 Codex app-server 读取当前主额度，失败时回退到 session 日志中的额度快照。
 - 本地按分钟聚合 `input`、`cached input`、`output`、`reasoning output`。
 - 小浮窗常驻桌面：左侧固定显示今日总 token，右侧可切换最近 5 分钟 token 或今日累计曲线。
 - 双击小浮窗打开独立大面板。
@@ -43,6 +44,7 @@
 
 监控来源：
 
+- 实时额度查询要求 `codex` CLI 位于 `PATH`；app-server 协议仍属实验性，可能随 Codex 版本变化。
 - Windows: `%USERPROFILE%\.codex\sessions` 和 `%USERPROFILE%\.codex\archived_sessions`
 - macOS/Linux: `$HOME/.codex/sessions` 和 `$HOME/.codex/archived_sessions`
 - 可通过 `CODEX_HOME` 覆盖 Codex 目录。

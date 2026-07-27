@@ -6,14 +6,26 @@ use std::{
     collections::BTreeMap,
     env,
     fs::{self, File},
-    io::{BufRead, BufReader, Read, Seek, SeekFrom},
+    io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
+    process::{Child, Command, Stdio},
+    sync::{mpsc, Mutex, OnceLock},
+    thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 const LOOKBACK_DAYS: u64 = 30;
 const LEDGER_SCHEMA_VERSION: i64 = 2;
 const PREFIX_HASH_BYTES: u64 = 4096;
+const LIVE_QUOTA_REFRESH_INTERVAL_MS: u64 = 15_000;
+const LIVE_QUOTA_STALE_AFTER_MS: u64 = 120_000;
+const APP_SERVER_RESPONSE_TIMEOUT: Duration = Duration::from_secs(10);
+const APP_SERVER_SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(500);
+const APP_SERVER_INITIALIZE_REQUEST: &str = r#"{"id":1,"method":"initialize","params":{"clientInfo":{"name":"codex-quota-monitor","title":"Codex Quota Monitor","version":"0.1.0"},"capabilities":{"experimentalApi":true}}}"#;
+const APP_SERVER_RATE_LIMIT_REQUEST: &str =
+    r#"{"id":2,"method":"account/rateLimits/read","params":null}"#;
+
+static LIVE_QUOTA_CACHE: OnceLock<Mutex<LiveQuotaCache>> = OnceLock::new();
 
 #[derive(Debug, Clone, Default, Serialize)]
 struct TokenCounts {
@@ -116,12 +128,90 @@ struct SessionCursor {
     active_model: Option<String>,
 }
 
+#[derive(Default)]
+struct LiveQuotaCache {
+    last_attempt_at_ms: u64,
+    last_success_at_ms: u64,
+    snapshot: Option<RateLimitSnapshot>,
+}
+
 pub(crate) fn scan_codex_usage() -> Result<UsageDashboard, String> {
-    scan_usage_at(&codex_home_dir(), &ledger_path())
+    let mut dashboard = scan_usage_at(&codex_home_dir(), &ledger_path())?;
+    if let Some(snapshot) = cached_live_rate_limit_snapshot() {
+        apply_live_rate_limit(&mut dashboard, snapshot);
+    }
+    Ok(dashboard)
 }
 
 pub(crate) fn reset_token_history() -> Result<UsageDashboard, String> {
-    reset_token_history_at(&codex_home_dir(), &ledger_path())
+    let mut dashboard = reset_token_history_at(&codex_home_dir(), &ledger_path())?;
+    if let Some(snapshot) = cached_live_rate_limit_snapshot() {
+        apply_live_rate_limit(&mut dashboard, snapshot);
+    }
+    Ok(dashboard)
+}
+
+fn cached_live_rate_limit_snapshot() -> Option<RateLimitSnapshot> {
+    let now = now_ms();
+    let cache = LIVE_QUOTA_CACHE.get_or_init(|| Mutex::new(LiveQuotaCache::default()));
+    let mut cache = cache
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+
+    if now.saturating_sub(cache.last_attempt_at_ms) >= LIVE_QUOTA_REFRESH_INTERVAL_MS {
+        cache.last_attempt_at_ms = now;
+        if let Ok(snapshot) = fetch_live_rate_limit_snapshot() {
+            cache.last_success_at_ms = now;
+            cache.snapshot = Some(snapshot);
+        }
+    }
+
+    (now.saturating_sub(cache.last_success_at_ms) <= LIVE_QUOTA_STALE_AFTER_MS)
+        .then(|| cache.snapshot.clone())
+        .flatten()
+}
+
+fn apply_live_rate_limit(dashboard: &mut UsageDashboard, snapshot: RateLimitSnapshot) {
+    let minute = dashboard
+        .latest
+        .as_ref()
+        .map(|latest| latest.minute.clone())
+        .unwrap_or_default();
+
+    if let Some(latest) = dashboard.latest.as_mut() {
+        latest.rate_limit = Some(snapshot.clone());
+    } else {
+        dashboard.latest = Some(LatestUsage {
+            rate_limit: Some(snapshot.clone()),
+            ..LatestUsage::default()
+        });
+    }
+
+    let Some(used_percent) = snapshot.used_percent else {
+        return;
+    };
+    if minute.is_empty() {
+        return;
+    }
+
+    let point = RateLimitPoint {
+        minute: minute.clone(),
+        used_percent,
+        remaining_percent: (100.0 - used_percent).clamp(0.0, 100.0),
+        window_minutes: snapshot.window_minutes,
+        resets_at: snapshot.resets_at,
+    };
+    if dashboard
+        .rate_limit_points
+        .last()
+        .is_some_and(|last| last.minute == minute)
+    {
+        if let Some(last) = dashboard.rate_limit_points.last_mut() {
+            *last = point;
+        }
+    } else {
+        dashboard.rate_limit_points.push(point);
+    }
 }
 
 fn scan_usage_at(codex_home: &Path, storage_path: &Path) -> Result<UsageDashboard, String> {
@@ -923,6 +1013,159 @@ fn token_counts(value: &Value) -> TokenCounts {
     }
 }
 
+fn fetch_live_rate_limit_snapshot() -> Result<RateLimitSnapshot, String> {
+    let mut command = codex_app_server_command();
+    command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+
+    let mut child = command.spawn().map_err(|error| error.to_string())?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Codex app-server stdout was not available".to_string())?;
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || {
+        for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+            let Ok(message) = serde_json::from_str::<Value>(&line) else {
+                continue;
+            };
+            if message.get("id").and_then(Value::as_i64) == Some(2) {
+                let _ = sender.send(message);
+                break;
+            }
+        }
+    });
+
+    let result = (|| {
+        let mut stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| "Codex app-server stdin was not available".to_string())?;
+        writeln!(stdin, "{APP_SERVER_INITIALIZE_REQUEST}").map_err(|error| error.to_string())?;
+        writeln!(stdin, "{APP_SERVER_RATE_LIMIT_REQUEST}").map_err(|error| error.to_string())?;
+        stdin.flush().map_err(|error| error.to_string())?;
+
+        let message = receiver
+            .recv_timeout(APP_SERVER_RESPONSE_TIMEOUT)
+            .map_err(|error| error.to_string())?;
+        drop(stdin);
+
+        if let Some(error) = message.get("error") {
+            let detail = error
+                .get("message")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown app-server error");
+            return Err(detail.to_string());
+        }
+
+        app_server_rate_limit_snapshot(&message)
+            .ok_or_else(|| "Codex app-server did not return the main quota bucket".to_string())
+    })();
+
+    shutdown_app_server(&mut child);
+    result
+}
+
+#[cfg(target_os = "windows")]
+fn codex_app_server_command() -> Command {
+    let mut command = Command::new("cmd.exe");
+    command.args(["/D", "/S", "/C", "codex app-server --listen stdio://"]);
+    command
+}
+
+#[cfg(not(target_os = "windows"))]
+fn codex_app_server_command() -> Command {
+    let mut command = Command::new("codex");
+    command.args(["app-server", "--listen", "stdio://"]);
+    command
+}
+
+fn shutdown_app_server(child: &mut Child) {
+    let deadline = SystemTime::now() + APP_SERVER_SHUTDOWN_TIMEOUT;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => return,
+            Ok(None) if SystemTime::now() < deadline => {
+                thread::sleep(Duration::from_millis(25));
+            }
+            _ => break,
+        }
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+fn app_server_rate_limit_snapshot(message: &Value) -> Option<RateLimitSnapshot> {
+    let result = message.get("result")?;
+    let bucket = result
+        .get("rateLimitsByLimitId")
+        .and_then(|limits| limits.get("codex"))
+        .or_else(|| {
+            result.get("rateLimits").filter(|snapshot| {
+                snapshot
+                    .get("limitId")
+                    .and_then(Value::as_str)
+                    .map(|limit_id| limit_id.eq_ignore_ascii_case("codex"))
+                    .unwrap_or(true)
+            })
+        })?;
+    let weekly = bucket
+        .get("secondary")
+        .filter(|candidate| is_weekly_app_server_rate_limit(candidate))
+        .or_else(|| {
+            bucket
+                .get("primary")
+                .filter(|candidate| is_weekly_app_server_rate_limit(candidate))
+        })?;
+    let credits_value = bucket.get("credits").unwrap_or(&Value::Null);
+    let credits = credits_value.is_object().then(|| CreditsSnapshot {
+        has_credits: credits_value
+            .get("hasCredits")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        unlimited: credits_value
+            .get("unlimited")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        balance: credits_value
+            .get("balance")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned),
+    });
+
+    Some(RateLimitSnapshot {
+        used_percent: weekly.get("usedPercent").and_then(Value::as_f64),
+        window_minutes: weekly.get("windowDurationMins").and_then(Value::as_u64),
+        resets_at: weekly.get("resetsAt").and_then(Value::as_i64).or_else(|| {
+            weekly
+                .get("resetsAt")
+                .and_then(Value::as_u64)
+                .map(|value| value as i64)
+        }),
+        plan_type: bucket
+            .get("planType")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned),
+        credits,
+    })
+}
+
+fn is_weekly_app_server_rate_limit(value: &Value) -> bool {
+    value
+        .get("windowDurationMins")
+        .and_then(Value::as_u64)
+        .map(|minutes| minutes >= 7 * 24 * 60)
+        .unwrap_or(false)
+}
+
 fn rate_limit_snapshot(
     value: &Value,
     model: Option<&str>,
@@ -1338,6 +1581,79 @@ mod tests {
         let snapshot = rate_limit_snapshot(&value, Some("gpt-5.6-sol"), Some(258_400))
             .expect("main Codex quota should be retained");
         assert_eq!(snapshot.used_percent, Some(9.0));
+    }
+
+    #[test]
+    fn app_server_rate_limit_uses_the_codex_bucket() {
+        let message = json!({
+            "id": 2,
+            "result": {
+                "rateLimits": {
+                    "limitId": "codex_bengalfox",
+                    "limitName": "GPT-5.3-Codex-Spark",
+                    "primary": {
+                        "usedPercent": 0,
+                        "windowDurationMins": 10080,
+                        "resetsAt": 200
+                    }
+                },
+                "rateLimitsByLimitId": {
+                    "codex_bengalfox": {
+                        "limitId": "codex_bengalfox",
+                        "primary": {
+                            "usedPercent": 0,
+                            "windowDurationMins": 10080,
+                            "resetsAt": 200
+                        }
+                    },
+                    "codex": {
+                        "limitId": "codex",
+                        "limitName": null,
+                        "primary": {
+                            "usedPercent": 14,
+                            "windowDurationMins": 10080,
+                            "resetsAt": 100
+                        },
+                        "planType": "prolite",
+                        "credits": {
+                            "hasCredits": false,
+                            "unlimited": false,
+                            "balance": "0"
+                        }
+                    }
+                }
+            }
+        });
+
+        let snapshot = app_server_rate_limit_snapshot(&message)
+            .expect("main Codex app-server quota should be selected");
+        assert_eq!(snapshot.used_percent, Some(14.0));
+        assert_eq!(snapshot.window_minutes, Some(10_080));
+        assert_eq!(snapshot.resets_at, Some(100));
+        assert_eq!(snapshot.plan_type.as_deref(), Some("prolite"));
+    }
+
+    #[test]
+    fn app_server_rate_limit_supports_the_legacy_single_bucket() {
+        let message = json!({
+            "id": 2,
+            "result": {
+                "rateLimits": {
+                    "limitId": "codex",
+                    "primary": {
+                        "usedPercent": 15,
+                        "windowDurationMins": 10080,
+                        "resetsAt": 100
+                    }
+                },
+                "rateLimitsByLimitId": null
+            }
+        });
+
+        assert_eq!(
+            app_server_rate_limit_snapshot(&message).and_then(|snapshot| snapshot.used_percent),
+            Some(15.0)
+        );
     }
 
     #[test]

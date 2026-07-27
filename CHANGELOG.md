@@ -12,6 +12,7 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ### Added
 
 - Add an optional launch-at-login checkbox backed by the system autostart mechanism on Windows, macOS, and Linux.
+- Read the current main quota from the experimental local Codex app-server every 15 seconds, with session-log snapshots as a fallback.
 
 ### Fixed
 
@@ -20,6 +21,7 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Keep today's token totals stable when conversations are archived by scanning both active and archived Codex session logs.
 - Select the main weekly quota from the seven-day rate-limit window for normal models, whether it is reported as `primary` or `secondary`.
 - Ignore Spark-only quota snapshots using the session model and context metadata.
+- Select the app-server `codex` quota bucket explicitly instead of allowing the separate Spark bucket to replace the main quota.
 - Preserve the latest valid main weekly quota when the newest session event belongs to Spark.
 - Show an unknown quota state instead of `100%` when no valid main weekly quota is available.
 - Anchor the burn-down chart at `100%` when the first local snapshot is recorded after reset.
