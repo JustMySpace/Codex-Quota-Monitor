@@ -12,7 +12,7 @@ use std::{
 };
 
 const LOOKBACK_DAYS: u64 = 30;
-const LEDGER_SCHEMA_VERSION: i64 = 1;
+const LEDGER_SCHEMA_VERSION: i64 = 2;
 const PREFIX_HASH_BYTES: u64 = 4096;
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -239,7 +239,21 @@ fn initialize_schema(connection: &Connection) -> Result<(), String> {
                      key TEXT PRIMARY KEY,
                      value TEXT NOT NULL
                  );
-                 PRAGMA user_version = 1;
+                 PRAGMA user_version = 2;
+                 COMMIT;",
+            )
+            .map_err(|error| error.to_string())?;
+
+        return Ok(());
+    }
+
+    if version == 1 {
+        connection
+            .execute_batch(
+                "BEGIN;
+                 DELETE FROM quota_snapshots;
+                 DELETE FROM session_cursors;
+                 PRAGMA user_version = 2;
                  COMMIT;",
             )
             .map_err(|error| error.to_string())?;
@@ -914,7 +928,10 @@ fn rate_limit_snapshot(
     model: Option<&str>,
     model_context_window: Option<u64>,
 ) -> Option<RateLimitSnapshot> {
-    if !value.is_object() || is_spark_model(model, model_context_window) {
+    if !value.is_object()
+        || is_spark_rate_limit(value)
+        || is_spark_model(model, model_context_window)
+    {
         return None;
     }
 
@@ -957,6 +974,17 @@ fn rate_limit_snapshot(
             .map(ToOwned::to_owned),
         credits,
     })
+}
+
+fn is_spark_rate_limit(value: &Value) -> bool {
+    value
+        .get("limit_id")
+        .and_then(Value::as_str)
+        .is_some_and(|limit_id| limit_id.eq_ignore_ascii_case("codex_bengalfox"))
+        || value
+            .get("limit_name")
+            .and_then(Value::as_str)
+            .is_some_and(|limit_name| limit_name.to_ascii_lowercase().contains("spark"))
 }
 
 fn is_spark_model(model: Option<&str>, model_context_window: Option<u64>) -> bool {
@@ -1286,6 +1314,100 @@ mod tests {
         assert!(rate_limit_snapshot(&value, Some("gpt-5.3-codex-spark"), Some(121_600)).is_none());
     }
 
+    #[test]
+    fn spark_rate_limit_is_rejected_even_for_a_non_spark_model() {
+        let value = json!({
+            "limit_id": "codex_bengalfox",
+            "limit_name": "GPT-5.3-Codex-Spark",
+            "primary": { "used_percent": 0.0, "window_minutes": 10080, "resets_at": 42 },
+            "secondary": null
+        });
+
+        assert!(rate_limit_snapshot(&value, Some("gpt-5.6-sol"), Some(258_400)).is_none());
+    }
+
+    #[test]
+    fn main_codex_rate_limit_is_kept() {
+        let value = json!({
+            "limit_id": "codex",
+            "limit_name": null,
+            "primary": { "used_percent": 9.0, "window_minutes": 10080, "resets_at": 42 },
+            "secondary": null
+        });
+
+        let snapshot = rate_limit_snapshot(&value, Some("gpt-5.6-sol"), Some(258_400))
+            .expect("main Codex quota should be retained");
+        assert_eq!(snapshot.used_percent, Some(9.0));
+    }
+
+    #[test]
+    fn schema_v2_rebuilds_quota_snapshots() {
+        let environment = TestEnvironment::new("quota-schema-v2");
+        let timestamp = sqlite_timestamp("-1 minute");
+        fs::write(
+            environment.active_file(),
+            format!(
+                "{}\n{}\n",
+                turn_context_line(),
+                token_line(&timestamp, 10, 10, true)
+            ),
+        )
+        .expect("source file should be written");
+        assert_eq!(
+            environment
+                .scan()
+                .latest
+                .and_then(|latest| latest.rate_limit)
+                .and_then(|snapshot| snapshot.used_percent),
+            Some(27.0)
+        );
+
+        {
+            let connection = Connection::open(&environment.ledger_path)
+                .expect("ledger should be opened for downgrade simulation");
+            connection
+                .execute(
+                    "INSERT INTO quota_snapshots(
+                         event_key, timestamp, minute, used_percent, window_minutes, resets_at
+                     ) VALUES(?1, ?2, ?3, 0, 10080, ?4)",
+                    params![
+                        b"stale-spark-snapshot",
+                        sqlite_timestamp("+1 minute"),
+                        sqlite_timestamp("+1 minute"),
+                        (now_ms() / 1000 + 3600) as i64,
+                    ],
+                )
+                .expect("stale Spark snapshot should be inserted");
+            connection
+                .pragma_update(None, "user_version", 1)
+                .expect("schema should be downgraded for migration test");
+        }
+
+        assert_eq!(
+            environment
+                .scan()
+                .latest
+                .and_then(|latest| latest.rate_limit)
+                .and_then(|snapshot| snapshot.used_percent),
+            Some(27.0)
+        );
+
+        let connection =
+            Connection::open(&environment.ledger_path).expect("migrated ledger should be opened");
+        let version: i64 = connection
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .expect("schema version should be readable");
+        let stale_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM quota_snapshots WHERE used_percent = 0",
+                [],
+                |row| row.get(0),
+            )
+            .expect("stale snapshot count should be readable");
+        assert_eq!(version, 2);
+        assert_eq!(stale_count, 0);
+    }
+
     fn sqlite_timestamp(modifier: &str) -> String {
         let connection = Connection::open_in_memory().expect("in-memory database should open");
         let sql = format!(
@@ -1309,6 +1431,8 @@ mod tests {
     fn token_line(timestamp: &str, last_total: u64, cumulative_total: u64, quota: bool) -> String {
         let rate_limits = quota.then(|| {
             json!({
+                "limit_id": "codex",
+                "limit_name": null,
                 "primary": { "used_percent": 2.0, "window_minutes": 300, "resets_at": 1 },
                 "secondary": {
                     "used_percent": 27.0,
